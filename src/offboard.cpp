@@ -31,6 +31,9 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.linear.x = inputPose->twist.linear.x;
     curr_velocity.linear.y = inputPose->twist.linear.y;
     curr_velocity.linear.z = inputPose->twist.linear.z;
+    curr_velocity.angular.x = inputPose->twist.angular.x;
+    curr_velocity.angular.y = inputPose->twist.angular.y;
+    curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
 void setup(){
@@ -60,7 +63,7 @@ bool liftOffProgressCheck(){
 }
 
 bool inTransitProgressCheck(){
-    if (!state_inTransitDone && abs(curr_velocity.linear.x) < .05 && (curr_position.orientation.y < .01) && abs(curr_position.position.x - 3) < .2 && state_liftOffDone){
+    if (!state_inTransitDone && abs(curr_velocity.linear.x) < .1 && (curr_position.orientation.y < .1) && abs(curr_position.position.x - 3) < .2 && state_liftOffDone){
         state_inTransitDone = true;
         ROS_INFO("Vehicle Has Reached It's Desitnation.");
         return true;
@@ -69,7 +72,7 @@ bool inTransitProgressCheck(){
 }
 
 bool landingProgressCheck(){
-    if (state_inTransitDone && state_liftOffDone && !state_liftOffDone && abs(curr_velocity.linear.z) > .001){
+    if (state_inTransitDone && state_liftOffDone && !state_landingDone && abs(curr_velocity.linear.z) > .001 && abs(curr_position.position.z - .15) < .01){
         state_inTransitDone = true;
         ROS_INFO("Vehicle Has Landed.");
         return true;
@@ -137,12 +140,11 @@ int main(int argc, char **argv){
     arm_cmd.request.value = true;
 
     ros::Time last_request = ros::Time::now();
-    ros::Time start_time = ros::Time::now();
     
     //liftoff code
     while(ros::ok() && (!state_liftOffDone) && (!liftOffProgressCheck())){
         if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(5.0))){
+            (ros::Time::now() - last_request > ros::Duration(2.0))){
             if( set_mode_client.call(offb_set_mode) &&
                 offb_set_mode.response.mode_sent){
                 ROS_INFO("Offboard enabled");
@@ -150,7 +152,7 @@ int main(int argc, char **argv){
             last_request = ros::Time::now();
         } else {
             if( !current_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(5.0))){
+                (ros::Time::now() - last_request > ros::Duration(2.0))){
                 if( arming_client.call(arm_cmd) &&
                     arm_cmd.response.success){
                     ROS_INFO("Vehicle armed");
@@ -183,12 +185,11 @@ int main(int argc, char **argv){
             last_request = ros::Time::now();
         }
         geometry_msgs::Twist updatingVel;
-        if(curr_position.position.z > .05){
-            updatingVel.linear.z = (-.7) * abs(curr_position.position.z-.04);
+        if(curr_position.position.z > .1){
+            updatingVel.linear.z = (-.7) * abs(curr_position.position.z-.8);
             local_vel_updatepose_pub.publish(updatingVel);
         } 
-        if(curr_position.position.z < .1){
-            ROS_INFO("Vehicle Is Landing");
+        if(curr_position.position.z < .2 || (curr_velocity.linear.z > .1 && curr_position.position.z < .4)){
             mavros_msgs::CommandLong endflight_call;
             endflight_call.request.broadcast = false;
             endflight_call.request.command = 400;
