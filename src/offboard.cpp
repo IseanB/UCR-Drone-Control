@@ -1,10 +1,13 @@
 #include <ros/ros.h>
+#include <mav_trajectory_generation/polynomial_optimization_linear.h>
+
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandLong.h>
+
 
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;

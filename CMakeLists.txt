@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   mavros_msgs
+  mav_trajectory_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,7 +108,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES simple_movements
- CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs mav_trajectory_generation
 #  DEPENDS system_lib
 )
 
