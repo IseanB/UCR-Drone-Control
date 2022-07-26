@@ -1,5 +1,14 @@
+
 #include <ros/ros.h>
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
+// #include <mav_trajectory_generation/mav_trajectory_generation_ros/include/mav_trajectory_generation_ros/ros_conversions.h>
+#include "mav_trajectory_generation/segment.h"
+// #include <mav_msgs/conversions.h>
+// #include <mav_msgs/default_topics.h>    
+// #include <mav_msgs/eigen_mav_msgs.h>
+// #include <mav_planning_msgs/PolynomialTrajectory.h>
+// #include <mav_planning_msgs/conversions.h>
+// #include <mav_planning_msgs/eigen_planning_msgs.h>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -170,7 +179,8 @@ int main(int argc, char **argv){
         rate.sleep();
     }
 
-
+    //Code from github
+    ////////////////////////////////////////////
     mav_trajectory_generation::Vertex::Vector vertices;
     const int dimension = 3;
     const int derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
@@ -195,14 +205,42 @@ int main(int argc, char **argv){
     opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
     opt.solveLinear();
 
-    mav_trajectory_generation::Segment::Vector segments;
-    opt.getSegments(&segments);
+    mav_trajectory_generation::Segment::Vector segments; //stores all points needed to follow
+    opt.getSegments(&segments);// fills "segments" variable with segments of the path
 
+    ////////////////////////////////////////////
+
+
+    mav_trajectory_generation::Trajectory trajectory;
+    trajectory.setSegments(segments);// dont use addSegments, uncessary calculations
+
+    // std::cout << segments.at(1) << std::endl;
+    // std::cout << trajectory.getSegmentTimes().at(0) << std::endl;
+    std::cout << "Trajectory Properties:\n" << std::endl;
+    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+    // std::cout << trajectory.getSegmentTimes().at(1) << std::endl;
+    // std::cout << trajectory.getSegmentTimes().at(2) << std::endl;
+
+    std::cout << "Optimization Function Information: \n\n"; 
+    printSegment(std::cout, segments.at(0), 0);
+    printSegment(std::cout, segments.at(0), 1);
+    printSegment(std::cout, segments.at(0), 2);
+    printSegment(std::cout, segments.at(0), 3);
+    printSegment(std::cout, segments.at(0), 4);
+    // mav_trajectory_generation::mav_planning_msgs::PolynomialTrajectory msg;
+    
+    //mav_trajectory_generation::trajectoryToPolynomialTrajectoryMsg()
+    
+    //printSegment(std::cout, segments, derivative_to_optimize)
     //in transit code 
+    // int count = 0;
     while(ros::ok() && state_liftOffDone && !inTransitProgressCheck()){
         if(ros::Time::now() - last_request > ros::Duration(5.0)){
             ROS_INFO("Vehicle In Motion");
             last_request = ros::Time::now();
+
         }
         local_pos_pub.publish(finalpose);
         ros::spinOnce();

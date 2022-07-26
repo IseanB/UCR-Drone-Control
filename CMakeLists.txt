@@ -108,7 +108,11 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES simple_movements
- CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs mav_trajectory_generation
+ CATKIN_DEPENDS roscpp 
+rospy 
+std_msgs 
+geometry_msgs 
+mav_trajectory_generation
 #  DEPENDS system_lib
 )
 
