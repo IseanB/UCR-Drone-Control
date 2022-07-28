@@ -2,7 +2,9 @@
 
 ## Installation 
   Tip: Only use ```catkin build```, never use ```catkin_make```.
-  1. Follow the [Ubuntu Development Enviorment](https://wiki.hanzheteng.com/quadrotor/px4#ubuntu-development-environment) and [Gazebo SITL Simulation](https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation) setup. 
+  1. Install VMWare and setup a disc image of Ubuntu 18.04 LTS.[^11][^12] 
+     - The rest of these instructions take place in the Ubuntu enviorment.
+  2. Follow the [Ubuntu Development Enviorment](https://wiki.hanzheteng.com/quadrotor/px4#ubuntu-development-environment) and [Gazebo SITL Simulation](https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation) setup. 
      - Install PX4 Related Dependencies. [^1]
        - Delete PX4 folder after completing steps.
      - Install ROS Melodic. [^2]
@@ -13,9 +15,9 @@
      - Install MAVROS, MAVLink, & Setup Workspace [^4]
        - Source Installation (Released/Stable)
   
-  2. Install QGroundContol [^5]
+  3. Install QGroundContol [^5]
   
-  3. Create a ROS package "simple_movements"
+  4. Create a ROS package "simple_movements"
   ```
   cd ~/[Workspace Name]/src
   mkdir simple_movements
@@ -63,3 +65,5 @@
   [^8]:https://answers.gazebosim.org//question/25030/gazebo-error-restcc205-error-in-rest-request/ (VMWare) 
   [^9]:https://answers.gazebosim.org//question/13214/virtual-machine-not-launching-gazebo/ (Gazebo)
   [^10]:https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation (Gazebo)
+  [^11]:https://customerconnect.vmware.com/en/downloads/info/slug/desktop_end_user_computing/vmware_workstation_pro/16_0 (VMWare)
+  [^12]:https://releases.ubuntu.com/18.04/ (Ubuntu)
