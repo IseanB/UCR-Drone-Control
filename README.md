@@ -2,19 +2,20 @@
 
 ## Installation 
   Tip: Only use ```catkin build```, never use ```catkin_make```.
-  1. Install PX4 Related Dependencies. [^1]
- 
-  2. Install ROS Melodic. [^2]
-
-  3. Install Simulation Common Dependencies. [^3]
-
-  4. Build Quadrotor Model & Setup Gazebo[^10]
+  1. Follow the [Ubuntu Development Enviorment](https://wiki.hanzheteng.com/quadrotor/px4#ubuntu-development-environment) and [Gazebo SITL Simulation](https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation) setup. 
+     - Install PX4 Related Dependencies. [^1]
+       - Delete PX4 folder after completing steps.
+     - Install ROS Melodic. [^2]
+       - Full Desktop Installation
+     - Install Simulation Common Dependencies. [^3]
+       - Run all code, execpt line 12, line by line in terminal.
+     - Build Quadrotor Model & Setup Gazebo[^10]
+     - Install MAVROS, MAVLink, & Setup Workspace [^4]
+       - Source Installation (Released/Stable)
   
-  5. Install MAVROS & Setup Workspace [^4]
+  2. Install QGroundContol [^5]
   
-  6. Install QGroundContol [^5]
-  
-  7. Create a ROS package "simple_movements"
+  3. Create a ROS package "simple_movements"
   ```
   cd ~/[Workspace Name]/src
   mkdir simple_movements
@@ -42,13 +43,13 @@
   - [Sample Code 2](https://docs.px4.io/v1.12/en/ros/mavros_offboard.html)
  
  ## Tools
-  - Gazebo
-  - ROS(Melodic)
-  - QGroundControl
-  - VMWare
-  - Linux
   - C++
+  - Gazebo
   - Git
+  - Linux
+  - QGroundControl
+  - ROS(Melodic)
+  - VMWare
  
 
   [^note]:
