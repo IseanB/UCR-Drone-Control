@@ -53,6 +53,11 @@
   - ROS(Melodic)
   - VMWare
  
+## Collaborators
+
+**Developers:** Isean Bhanot
+
+**Mentors:** Hanzhe Teng
 
   [^note]:
   [^1]:https://dev.px4.io/v1.11_noredirect/en/setup/dev_env_linux_ubuntu.html (PX4 Install in Root)
