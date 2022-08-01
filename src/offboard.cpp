@@ -1,14 +1,7 @@
-
 #include <ros/ros.h>
+
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
-// #include <mav_trajectory_generation/mav_trajectory_generation_ros/include/mav_trajectory_generation_ros/ros_conversions.h>
 #include "mav_trajectory_generation/segment.h"
-// #include <mav_msgs/conversions.h>
-// #include <mav_msgs/default_topics.h>    
-// #include <mav_msgs/eigen_mav_msgs.h>
-// #include <mav_planning_msgs/PolynomialTrajectory.h>
-// #include <mav_planning_msgs/conversions.h>
-// #include <mav_planning_msgs/eigen_planning_msgs.h>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -17,86 +10,44 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandLong.h>
 
-
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
 geometry_msgs::Twist curr_velocity;
-bool state_liftOffDone = false;
-bool state_inTransitDone = false;
-bool state_landingDone = false;
 
-void state_cb(const mavros_msgs::State::ConstPtr& msg){
-    current_state = *msg;
-}
+enum PossiableState{
+    LIFTING_OFF,
+    IN_TRANSIT,
+    LANDING,
+    LANDED
+};
 
-void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose){
-    curr_position.position.x = (inputPose->pose).position.x;
-    curr_position.position.y = (inputPose->pose).position.y;
-    curr_position.position.z = (inputPose->pose).position.z;
-    curr_position.orientation.x = (inputPose->pose).orientation.x;
-    curr_position.orientation.y = (inputPose->pose).orientation.y;
-    curr_position.orientation.z = (inputPose->pose).orientation.z;
-    curr_position.orientation.w = (inputPose->pose).orientation.w;
-}
+/* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
+void setup();
 
-void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
-    curr_velocity.linear.x = inputPose->twist.linear.x;
-    curr_velocity.linear.y = inputPose->twist.linear.y;
-    curr_velocity.linear.z = inputPose->twist.linear.z;
-    curr_velocity.angular.x = inputPose->twist.angular.x;
-    curr_velocity.angular.y = inputPose->twist.angular.y;
-    curr_velocity.angular.z = inputPose->twist.angular.z;
-}
+/* Used for initiating contact with drone and setting it to OFFBOARD mode */
+void state_cb(const mavros_msgs::State::ConstPtr& msg);
 
-void setup(){
-    curr_position.position.x = 0;
-    curr_position.position.y = 0;
-    curr_position.position.z = 0;
-    curr_position.orientation.x = 0;
-    curr_position.orientation.y = 0;
-    curr_position.orientation.z = 0;
-    curr_position.orientation.w = 0;
+/* Updates curr_position values, position and orientation, with inputted pose */
+void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 
-    curr_velocity.linear.x = 0;
-    curr_velocity.linear.y = 0;
-    curr_velocity.linear.z = 0;
-    curr_velocity.angular.x = 0;
-    curr_velocity.angular.y = 0;
-    curr_velocity.angular.z = 0;
-}
+/* Updates curr_velocity values, linear and angular, with inputted pose */
+void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 
-bool liftOffProgressCheck(){
-    if (!state_liftOffDone && abs(curr_velocity.linear.z) < .15 && abs(curr_position.position.z-2) < .05){
-        ROS_INFO("Vehicle Has Lifted Off.");
-        state_liftOffDone = true;
-        return true;
-    }
-    return false;
-}
+/* Finds magnitude of this_vel values, x and y and z, checks its less than or equal to maxSpeed(m/s)*/
+bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed);
 
-bool inTransitProgressCheck(){
-    if (!state_inTransitDone && abs(curr_velocity.linear.x) < .1 && (curr_position.orientation.y < .1) && abs(curr_position.position.x - 3) < .2 && state_liftOffDone){
-        state_inTransitDone = true;
-        ROS_INFO("Vehicle Has Reached It's Desitnation.");
-        return true;
-    }
-    return false;
-}
+/*Makes sures this_pos is not tilted more than maxTilt, degrees, in any axis*/
+bool isFlat(const geometry_msgs::Pose this_pos, float maxTilt);
 
-bool landingProgressCheck(){
-    if (state_inTransitDone && state_liftOffDone && !state_landingDone && abs(curr_velocity.linear.z) > .001 && abs(curr_position.position.z - .15) < .01){
-        state_inTransitDone = true;
-        ROS_INFO("Vehicle Has Landed.");
-        return true;
-    }
-    return false;
-}
+/*Finds distance from curr_pos to desired_pos and checks it's within a accuracyDistance*/
+bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance);
 
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "offb_node");
     setup();
     ros::NodeHandle nh;
+    PossiableState droneState = LIFTING_OFF;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
             ("mavros/state", 0, state_cb);
@@ -113,72 +64,11 @@ int main(int argc, char **argv){
             ("mavros/cmd/command");        
 
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            ("mavros/setpoint_position/local", 0, updatePose);
-    ros::Publisher local_vel_updatevel_pub = nh.advertise<geometry_msgs::Twist>
-            ("mavros/setpoint_velocity/cmd_vel_unstamped", 0, updateVel);
-    ros::Publisher local_vel_updatepose_pub = nh.advertise<geometry_msgs::Twist>
-            ("mavros/setpoint_velocity/cmd_vel_unstamped", 0, updatePose);
+            ("mavros/setpoint_position/local", 0);
+    ros::Publisher local_vel_update = nh.advertise<geometry_msgs::Twist>
+            ("mavros/setpoint_velocity/cmd_vel_unstamped", 0);
+
     
-
-    //the setpoint publishing rate MUST be faster than 2Hz
-    ros::Rate rate(20.0);
-
-    // wait for FCU connection
-    while(ros::ok() && !current_state.connected){
-        ros::spinOnce();
-        rate.sleep();
-    }
-
-    geometry_msgs::PoseStamped pose;
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
-
-    geometry_msgs::PoseStamped finalpose;
-    finalpose.pose.position.x = 3;
-    finalpose.pose.position.y = 0;
-    finalpose.pose.position.z = 2;
-
-    //send a few setpoints before starting
-    for(int i = 10; ros::ok() && i > 0; --i){
-        local_pos_pub.publish(pose);
-        ros::spinOnce();
-        rate.sleep();
-    }
-
-    mavros_msgs::SetMode offb_set_mode;
-    offb_set_mode.request.custom_mode = "OFFBOARD";
-    mavros_msgs::CommandBool arm_cmd;
-    arm_cmd.request.value = true;
-
-    ros::Time last_request = ros::Time::now();
-    
-    //liftoff code
-    while(ros::ok() && (!state_liftOffDone) && (!liftOffProgressCheck())){
-        if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(2.0))){
-            if( set_mode_client.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent){
-                ROS_INFO("Offboard enabled");
-            }
-            last_request = ros::Time::now();
-        } else {
-            if( !current_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(2.0))){
-                if( arming_client.call(arm_cmd) &&
-                    arm_cmd.response.success){
-                    ROS_INFO("Vehicle armed");
-                }
-                last_request = ros::Time::now();
-            }
-        }
-
-        local_pos_pub.publish(pose);
-        
-        ros::spinOnce();
-        rate.sleep();
-    }
-
     //Code from github
     ////////////////////////////////////////////
     mav_trajectory_generation::Vertex::Vector vertices;
@@ -214,51 +104,121 @@ int main(int argc, char **argv){
     mav_trajectory_generation::Trajectory trajectory;
     trajectory.setSegments(segments);// dont use addSegments, uncessary calculations
 
-    // std::cout << segments.at(1) << std::endl;
-    // std::cout << trajectory.getSegmentTimes().at(0) << std::endl;
-    std::cout << "Trajectory Properties:\n" << std::endl;
-    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-    // std::cout << trajectory.getSegmentTimes().at(1) << std::endl;
-    // std::cout << trajectory.getSegmentTimes().at(2) << std::endl;
+    // std::cout << "Trajectory Properties:\n" << std::endl;
+    // std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+    // std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+    // std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+    // std::cout << "Optimization Function Information: \n\n"; 
+    // printSegment(std::cout, segments.at(0), 0);
+    // printSegment(std::cout, segments.at(1), 0);
 
-    std::cout << "Optimization Function Information: \n\n"; 
-    printSegment(std::cout, segments.at(0), 0);
-    printSegment(std::cout, segments.at(0), 1);
-    printSegment(std::cout, segments.at(0), 2);
-    printSegment(std::cout, segments.at(0), 3);
-    printSegment(std::cout, segments.at(0), 4);
-    // mav_trajectory_generation::mav_planning_msgs::PolynomialTrajectory msg;
-    
-    //mav_trajectory_generation::trajectoryToPolynomialTrajectoryMsg()
-    
-    //printSegment(std::cout, segments, derivative_to_optimize)
-    //in transit code 
-    // int count = 0;
-    while(ros::ok() && state_liftOffDone && !inTransitProgressCheck()){
-        if(ros::Time::now() - last_request > ros::Duration(5.0)){
-            ROS_INFO("Vehicle In Motion");
-            last_request = ros::Time::now();
+    geometry_msgs::PoseStamped liftOffPos;
+    liftOffPos.pose.position.x = 0;
+    liftOffPos.pose.position.y = 0;
+    liftOffPos.pose.position.z = 2;
 
-        }
-        local_pos_pub.publish(finalpose);
+    geometry_msgs::PoseStamped preLandPos;
+    preLandPos.pose.position.x = 3;
+    preLandPos.pose.position.y = 0;
+    preLandPos.pose.position.z = 2;
+
+    geometry_msgs::PoseStamped landingPos;
+    landingPos.pose.position.x = 3;
+    landingPos.pose.position.y = 0;
+    landingPos.pose.position.z = 0;
+
+    //the setpoint publishing rate MUST be faster than 2Hz
+    ros::Rate rate(20.0);
+
+    // wait for FCU connection
+    while(ros::ok() && !current_state.connected){
         ros::spinOnce();
         rate.sleep();
     }
 
-    //landing code
-    while(ros::ok() && state_liftOffDone && state_inTransitDone && !state_landingDone){
+    //send a few setpoints before starting
+    for(int i = 10; ros::ok() && i > 0; --i){
+        local_pos_pub.publish(liftOffPos);
+        ros::spinOnce();
+        rate.sleep();
+    }
+
+    /*Used to send periodic messages about drone*/
+    ros::Time last_request = ros::Time::now();
+
+    //Liftoff Setup
+
+    mavros_msgs::SetMode offb_set_mode;
+    offb_set_mode.request.custom_mode = "OFFBOARD";
+    mavros_msgs::CommandBool arm_cmd;
+    arm_cmd.request.value = true;
+
+    //Liftoff code
+
+    while(ros::ok() && (droneState == LIFTING_OFF)){
+        if( current_state.mode != "OFFBOARD" &&
+            (ros::Time::now() - last_request > ros::Duration(2.0))){
+            if( set_mode_client.call(offb_set_mode) &&
+                offb_set_mode.response.mode_sent){
+                ROS_INFO("Offboard enabled");
+            }
+            last_request = ros::Time::now();
+        } else {
+            if( !current_state.armed &&
+                (ros::Time::now() - last_request > ros::Duration(2.0))){
+                if( arming_client.call(arm_cmd) &&
+                    arm_cmd.response.success){
+                    ROS_INFO("Vehicle armed");
+                }
+                last_request = ros::Time::now();
+            }
+        }
+
+        local_pos_pub.publish(liftOffPos);
+        
+        ros::spinOnce();
+        rate.sleep();
+        
+        /*Checks if drone landed*/
+        if((reachedLocation(curr_position, liftOffPos, .1)) && (isStationary(curr_velocity, .05))){
+            droneState = IN_TRANSIT;
+        }
+    }
+
+
+    //In Transit code 
+
+    while(ros::ok() && (droneState == IN_TRANSIT)){
+        if(ros::Time::now() - last_request > ros::Duration(5.0)){
+            ROS_INFO("Vehicle In Motion");
+            last_request = ros::Time::now();
+        }
+
+        local_pos_pub.publish(preLandPos);
+        
+        ros::spinOnce();
+        rate.sleep();
+
+        /*Checks if drone is done traveling*/
+        if(reachedLocation(curr_position, preLandPos, .1) && isStationary(curr_velocity, .5) && isFlat(curr_position, 3.14/12)){
+            droneState = LANDING;
+        }
+    }
+
+
+    //Landing code
+
+    while(ros::ok() && (droneState == LANDING)){
         if(ros::Time::now() - last_request > ros::Duration(5.0)){
             ROS_INFO("Vehicle Is Descending");
             last_request = ros::Time::now();
         }
         geometry_msgs::Twist updatingVel;
         if(curr_position.position.z > .1){
-            updatingVel.linear.z = (-.7) * abs(curr_position.position.z-.8);
-            local_vel_updatepose_pub.publish(updatingVel);
+            updatingVel.linear.z = (-.2) * abs(curr_position.position.z - .1);
+            local_vel_update.publish(updatingVel);
         } 
-        if(curr_position.position.z < .2 || (curr_velocity.linear.z > .1 && curr_position.position.z < .4)){
+        if(isStationary(curr_velocity, .5) || ( curr_position.position.z < .1)){
             mavros_msgs::CommandLong endflight_call;
             endflight_call.request.broadcast = false;
             endflight_call.request.command = 400;
@@ -267,14 +227,69 @@ int main(int argc, char **argv){
                 end_flight_client.waitForExistence()){
                 ROS_INFO("Vehicle is Shutting Down");
             }
-            state_landingDone = true;
+            droneState = LANDED;
             last_request = ros::Time::now();
         }
         ros::spinOnce();
         rate.sleep();
+
     }
 
-
-    return 0;
+    return 1;
 }
 
+void setup(){
+    curr_position.position.x = 0;
+    curr_position.position.y = 0;
+    curr_position.position.z = 0;
+    curr_position.orientation.x = 0;
+    curr_position.orientation.y = 0;
+    curr_position.orientation.z = 0;
+    curr_position.orientation.w = 0;
+
+    curr_velocity.linear.x = 0;
+    curr_velocity.linear.y = 0;
+    curr_velocity.linear.z = 0;
+    curr_velocity.angular.x = 0;
+    curr_velocity.angular.y = 0;
+    curr_velocity.angular.z = 0;
+}
+
+void state_cb(const mavros_msgs::State::ConstPtr& msg){
+    current_state = *msg;
+}
+
+void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose){
+    curr_position.position.x = (inputPose->pose).position.x;
+    curr_position.position.y = (inputPose->pose).position.y;
+    curr_position.position.z = (inputPose->pose).position.z;
+    curr_position.orientation.x = (inputPose->pose).orientation.x;
+    curr_position.orientation.y = (inputPose->pose).orientation.y;
+    curr_position.orientation.z = (inputPose->pose).orientation.z;
+    curr_position.orientation.w = (inputPose->pose).orientation.w;
+}
+
+void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
+    curr_velocity.linear.x = inputPose->twist.linear.x;
+    curr_velocity.linear.y = inputPose->twist.linear.y;
+    curr_velocity.linear.z = inputPose->twist.linear.z;
+    curr_velocity.angular.x = inputPose->twist.angular.x;
+    curr_velocity.angular.y = inputPose->twist.angular.y;
+    curr_velocity.angular.z = inputPose->twist.angular.z;
+}
+
+bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed){
+    return( pow(pow(this_vel.linear.x, 2) + pow(this_vel.linear.y, 2) + pow(this_vel.linear.z, 2), .5) <= maxSpeed );
+}
+
+bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance){
+    return( 
+        pow( 
+            pow(this_pos.position.x - desired_pos.pose.position.x, 2) + 
+            pow(this_pos.position.y - desired_pos.pose.position.y, 2) + 
+            pow(this_pos.position.z - desired_pos.pose.position.z, 2), .5) <= accuracyDistance );
+}
+
+bool isFlat(const geometry_msgs::Pose this_pos, float maxTilt){
+    return (this_pos.orientation.x <= maxTilt && this_pos.orientation.y <= maxTilt);
+}
