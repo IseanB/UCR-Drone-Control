@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include "../helper/helperFunc.h"
 
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
 #include "mav_trajectory_generation/segment.h"
@@ -32,16 +33,6 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
-
-/* Finds magnitude of this_vel values, x and y and z, checks its less than or equal to maxSpeed(m/s)*/
-bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed);
-
-/*Makes sures this_pos is not tilted more than maxTilt, degrees, in any axis*/
-bool isFlat(const geometry_msgs::Pose this_pos, float maxTilt);
-
-/*Finds distance from curr_pos to desired_pos and checks it's within a accuracyDistance*/
-bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance);
-
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "offb_node");
@@ -276,20 +267,4 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.x = inputPose->twist.angular.x;
     curr_velocity.angular.y = inputPose->twist.angular.y;
     curr_velocity.angular.z = inputPose->twist.angular.z;
-}
-
-bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed){
-    return( pow(pow(this_vel.linear.x, 2) + pow(this_vel.linear.y, 2) + pow(this_vel.linear.z, 2), .5) <= maxSpeed );
-}
-
-bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance){
-    return( 
-        pow( 
-            pow(this_pos.position.x - desired_pos.pose.position.x, 2) + 
-            pow(this_pos.position.y - desired_pos.pose.position.y, 2) + 
-            pow(this_pos.position.z - desired_pos.pose.position.z, 2), .5) <= accuracyDistance );
-}
-
-bool isFlat(const geometry_msgs::Pose this_pos, float maxTilt){
-    return (this_pos.orientation.x <= maxTilt && this_pos.orientation.y <= maxTilt);
 }
