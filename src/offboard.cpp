@@ -1,15 +1,4 @@
-#include <ros/ros.h>
-#include "../helper/helperFunc.h"
-
-#include <mav_trajectory_generation/polynomial_optimization_linear.h>
-#include "mav_trajectory_generation/segment.h"
-
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/SetMode.h>
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/CommandLong.h>
+#include "../helper_h/helperFunc.h"
 
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
@@ -33,6 +22,8 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
+
+void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "offb_node");
@@ -59,49 +50,44 @@ int main(int argc, char **argv){
     ros::Publisher local_vel_update = nh.advertise<geometry_msgs::Twist>
             ("mavros/setpoint_velocity/cmd_vel_unstamped", 0);
 
+
+    // Optimzation Code
+    ROS_INFO("Optimizing Path ... ");
+    mav_trajectory_generation::Segment::Vector segments; // stores all segments
+    {
+        mav_trajectory_generation::Vertex::Vector vertices;
+        const int dimension = 3;
+        const int derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+        mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
+
+        start.makeStartOrEnd(Eigen::Vector3d(0,0,2), derivative_to_optimize);
+        vertices.push_back(start);
+
+        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(3,2,3));
+        vertices.push_back(middle);
+
+        end.makeStartOrEnd(Eigen::Vector3d(3,0,1), derivative_to_optimize);
+        vertices.push_back(end);
+        
+        std::vector<double> segment_times;
+        const double v_max = 2.0;
+        const double a_max = 2.0;
+        segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+
+        const int N = 10;// needs to be at least 10 for snap, 8 for jerk
+        mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
+        opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
+        opt.solveLinear();
+
+        opt.getSegments(&segments);// fills "segments" variable with segments of the path
+    }
+    ROS_INFO("Optimization Done!");
     
-    //Code from github
-    ////////////////////////////////////////////
-    mav_trajectory_generation::Vertex::Vector vertices;
-    const int dimension = 3;
-    const int derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
-    mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
+    Eigen::VectorXd segmentOne_x_pos(10);
+    Eigen::VectorXd segmentOne_y_pos(10);
+    Eigen::VectorXd segmentOne_z_pos(10);
 
-    start.makeStartOrEnd(Eigen::Vector3d(0,0,1), derivative_to_optimize);
-    vertices.push_back(start);
-
-    middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(1,2,3));
-    vertices.push_back(middle);
-
-    end.makeStartOrEnd(Eigen::Vector3d(2,1,5), derivative_to_optimize);
-    vertices.push_back(end);
-    
-    std::vector<double> segment_times;
-    const double v_max = 2.0;
-    const double a_max = 2.0;
-    segment_times = estimateSegmentTimes(vertices, v_max, a_max);
-
-    const int N = 10;// needs to be at least 10 for snap, 8 for jerk
-    mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
-    opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
-    opt.solveLinear();
-
-    mav_trajectory_generation::Segment::Vector segments; //stores all points needed to follow
-    opt.getSegments(&segments);// fills "segments" variable with segments of the path
-
-    ////////////////////////////////////////////
-
-
-    mav_trajectory_generation::Trajectory trajectory;
-    trajectory.setSegments(segments);// dont use addSegments, uncessary calculations
-
-    // std::cout << "Trajectory Properties:\n" << std::endl;
-    // std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-    // std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-    // std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-    // std::cout << "Optimization Function Information: \n\n"; 
-    // printSegment(std::cout, segments.at(0), 0);
-    // printSegment(std::cout, segments.at(1), 0);
+    // printTrajInfo(segments);
 
     geometry_msgs::PoseStamped liftOffPos;
     liftOffPos.pose.position.x = 0;
@@ -137,14 +123,11 @@ int main(int argc, char **argv){
     /*Used to send periodic messages about drone*/
     ros::Time last_request = ros::Time::now();
 
-    //Liftoff Setup
-
+    //Liftoff code
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
-
-    //Liftoff code
 
     while(ros::ok() && (droneState == LIFTING_OFF)){
         if( current_state.mode != "OFFBOARD" &&
@@ -170,7 +153,7 @@ int main(int argc, char **argv){
         ros::spinOnce();
         rate.sleep();
         
-        /*Checks if drone landed*/
+        /*Checks if drone lifted off*/
         if((reachedLocation(curr_position, liftOffPos, .1)) && (isStationary(curr_velocity, .05))){
             droneState = IN_TRANSIT;
         }
@@ -267,4 +250,18 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.x = inputPose->twist.angular.x;
     curr_velocity.angular.y = inputPose->twist.angular.y;
     curr_velocity.angular.z = inputPose->twist.angular.z;
+}
+
+void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
+    mav_trajectory_generation::Trajectory trajectory;
+    trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
+
+    std::cout << "Trajectory Properties:\n" << std::endl;
+    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+    std::cout << "Sample Optimized Function Information: \n\n"; 
+    printSegment(std::cout, allSegments.at(0), 0);
+    printSegment(std::cout, allSegments.at(0), 1);
+    printSegment(std::cout, allSegments.at(0), 2);
 }

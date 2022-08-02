@@ -142,7 +142,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/simple_movements_node.cpp)
 add_executable(offboard_node 
-  helper/helperFunc.cpp
+  helper_cpp/helperFunc.cpp
   src/offboard.cpp)
   
   ## Rename C++ executable without prefix
@@ -208,7 +208,7 @@ target_link_libraries(offboard_node
 
 ## Add gtest based cpp test target and link libraries
 catkin_add_executable_with_gtest(SM_test 
-  helper/helperFunc.cpp
+  helper_cpp/helperFunc.cpp
   test/test_helperFunc.cpp)
 # if(TARGET SM_test)
 #   target_link_libraries(SM_test ${PROJECT_NAME})
