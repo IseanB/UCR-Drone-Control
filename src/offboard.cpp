@@ -165,7 +165,7 @@ int main(int argc, char **argv){
 
 
     //In Transit code 
-
+    
     int numOfPoints = 80;
 
     int currSegment = 0;
@@ -173,7 +173,7 @@ int main(int argc, char **argv){
     double totalTime = segments.at(currSegment).getTime();
     double timeIncrement = totalTime/numOfPoints;
     double trackerTime = totalTime/numOfPoints;
-    std::cout << "Total Time"  << totalTime << std::endl;
+    // std::cout << "Total Time"  << totalTime << std::endl;
 
     while(ros::ok() && (droneState == IN_TRANSIT)){
         if(ros::Time::now() - last_request > ros::Duration(5.0)){
@@ -207,11 +207,10 @@ int main(int argc, char **argv){
         rate.sleep();
 
         /*Checks if drone is done traveling*/
-        if(reachedLocation(curr_position, preLandPos, .1) && isStationary(curr_velocity, .5) && isFlat(curr_position, 3.14/12)){
+        if(reachedLocation(curr_position, preLandPos, .1) && isStationary(curr_velocity, .2) && isFlat(curr_position, 3.14/12)){
             droneState = LANDING;
         }
     }
-
 
     //Landing code
 
@@ -220,12 +219,14 @@ int main(int argc, char **argv){
             ROS_INFO("Vehicle Is Descending");
             last_request = ros::Time::now();
         }
-        geometry_msgs::Twist updatingVel;
-        if(curr_position.position.z > .1){
-            updatingVel.linear.z = (-.2) * abs(curr_position.position.z - .1);
+        if(curr_position.position.z > .15){
+            geometry_msgs::Twist updatingVel;
+            updatingVel.linear.x = 0;
+            updatingVel.linear.y = 0;
+            updatingVel.linear.z = (-.5) * abs(curr_position.position.z-.1);
             local_vel_pub.publish(updatingVel);
         } 
-        if(isStationary(curr_velocity, .5) || ( curr_position.position.z < .1)){
+        if(isStationary(curr_velocity, .3) && ( curr_position.position.z <= .2)){
             mavros_msgs::CommandLong endflight_call;
             endflight_call.request.broadcast = false;
             endflight_call.request.command = 400;
@@ -233,8 +234,8 @@ int main(int argc, char **argv){
             if( end_flight_client.call(endflight_call) &&
                 end_flight_client.waitForExistence()){
                 ROS_INFO("Vehicle is Shutting Down");
+                droneState = LANDED;
             }
-            droneState = LANDED;
             last_request = ros::Time::now();
         }
         ros::spinOnce();
