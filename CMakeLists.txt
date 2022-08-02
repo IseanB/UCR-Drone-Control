@@ -207,9 +207,9 @@ target_link_libraries(offboard_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-catkin_add_executable_with_gtest(SM_test 
-  helper_cpp/helperFunc.cpp
-  test/test_helperFunc.cpp)
+# catkin_add_executable_with_gtest(SM_test 
+#   helper_cpp/helperFunc.cpp
+#   test/test_helperFunc.cpp)
 # if(TARGET SM_test)
 #   target_link_libraries(SM_test ${PROJECT_NAME})
 # endif()
