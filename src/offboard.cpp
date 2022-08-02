@@ -47,13 +47,16 @@ int main(int argc, char **argv){
 
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_position/local", 0);
-    ros::Publisher local_vel_update = nh.advertise<geometry_msgs::Twist>
+    ros::Publisher local_vel_pub = nh.advertise<geometry_msgs::Twist>
             ("mavros/setpoint_velocity/cmd_vel_unstamped", 0);
+    ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
+            ("mavros/setpoint_raw/local", 20);
 
 
     // Optimzation Code
     ROS_INFO("Optimizing Path ... ");
     mav_trajectory_generation::Segment::Vector segments; // stores all segments
+    mav_trajectory_generation::Trajectory totalTrajectory;
     {
         mav_trajectory_generation::Vertex::Vector vertices;
         const int dimension = 3;
@@ -63,10 +66,10 @@ int main(int argc, char **argv){
         start.makeStartOrEnd(Eigen::Vector3d(0,0,2), derivative_to_optimize);
         vertices.push_back(start);
 
-        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(3,2,3));
+        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(10,12,3));
         vertices.push_back(middle);
 
-        end.makeStartOrEnd(Eigen::Vector3d(3,0,1), derivative_to_optimize);
+        end.makeStartOrEnd(Eigen::Vector3d(0,0,5), derivative_to_optimize);
         vertices.push_back(end);
         
         std::vector<double> segment_times;
@@ -80,12 +83,11 @@ int main(int argc, char **argv){
         opt.solveLinear();
 
         opt.getSegments(&segments);// fills "segments" variable with segments of the path
+        totalTrajectory.setSegments(segments);
     }
+
+
     ROS_INFO("Optimization Done!");
-    
-    Eigen::VectorXd segmentOne_x_pos(10);
-    Eigen::VectorXd segmentOne_y_pos(10);
-    Eigen::VectorXd segmentOne_z_pos(10);
 
     // printTrajInfo(segments);
 
@@ -95,12 +97,12 @@ int main(int argc, char **argv){
     liftOffPos.pose.position.z = 2;
 
     geometry_msgs::PoseStamped preLandPos;
-    preLandPos.pose.position.x = 3;
+    preLandPos.pose.position.x = 0;
     preLandPos.pose.position.y = 0;
-    preLandPos.pose.position.z = 2;
+    preLandPos.pose.position.z = 5;
 
     geometry_msgs::PoseStamped landingPos;
-    landingPos.pose.position.x = 3;
+    landingPos.pose.position.x = 0;
     landingPos.pose.position.y = 0;
     landingPos.pose.position.z = 0;
 
@@ -123,7 +125,9 @@ int main(int argc, char **argv){
     /*Used to send periodic messages about drone*/
     ros::Time last_request = ros::Time::now();
 
+
     //Liftoff code
+    
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
     mavros_msgs::CommandBool arm_cmd;
@@ -162,14 +166,43 @@ int main(int argc, char **argv){
 
     //In Transit code 
 
+    int numOfPoints = 80;
+
+    int currSegment = 0;
+    int maxSegments = totalTrajectory.K();
+    double totalTime = segments.at(currSegment).getTime();
+    double timeIncrement = totalTime/numOfPoints;
+    double trackerTime = totalTime/numOfPoints;
+    std::cout << "Total Time"  << totalTime << std::endl;
+
     while(ros::ok() && (droneState == IN_TRANSIT)){
         if(ros::Time::now() - last_request > ros::Duration(5.0)){
             ROS_INFO("Vehicle In Motion");
             last_request = ros::Time::now();
         }
 
-        local_pos_pub.publish(preLandPos);
-        
+        mavros_msgs::PositionTarget output = pointInfoGenerator(segments.at(currSegment), trackerTime);
+        mav_pub.publish(output);
+
+        if(reachedLocation(curr_position, output.position, .3) && trackerTime < totalTime){
+            trackerTime += timeIncrement;
+        }
+        if(trackerTime>totalTime){
+            trackerTime = totalTime;
+        }
+        else if(trackerTime == totalTime){
+            ROS_INFO("End of a segment");
+            if(currSegment < maxSegments - 1){
+                ++currSegment;
+                totalTime = segments.at(currSegment).getTime();
+                trackerTime = totalTime/numOfPoints;
+            }
+            else{
+                ROS_INFO("No more segments");
+                droneState = LANDING;
+            }
+        }
+
         ros::spinOnce();
         rate.sleep();
 
@@ -190,7 +223,7 @@ int main(int argc, char **argv){
         geometry_msgs::Twist updatingVel;
         if(curr_position.position.z > .1){
             updatingVel.linear.z = (-.2) * abs(curr_position.position.z - .1);
-            local_vel_update.publish(updatingVel);
+            local_vel_pub.publish(updatingVel);
         } 
         if(isStationary(curr_velocity, .5) || ( curr_position.position.z < .1)){
             mavros_msgs::CommandLong endflight_call;
@@ -261,7 +294,10 @@ void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments
     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
     std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
     std::cout << "Sample Optimized Function Information: \n\n"; 
+    /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
     printSegment(std::cout, allSegments.at(0), 0);
+    /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
     printSegment(std::cout, allSegments.at(0), 1);
+    /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
     printSegment(std::cout, allSegments.at(0), 2);
 }
