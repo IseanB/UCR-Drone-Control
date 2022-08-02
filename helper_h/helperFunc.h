@@ -9,12 +9,13 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/Point.h>
 
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandLong.h>
-
+#include <mavros_msgs/PositionTarget.h>
 
 /*  Functions   */
 
@@ -27,19 +28,11 @@ bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed = 0, float
 /*Finds distance from curr_pos to desired_pos and checks it's within a accuracyDistance*/
 bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance);
 
+bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Point desired_pos, float accuracyDistance);
+
+mavros_msgs::PositionTarget pointInfoGenerator(const mav_trajectory_generation::Segment& s, double time);
+
 /*  Classes   */
 
-/*
-SegmentStorage stores coefficents for position, velocity,
-acceleration seperately for x,y,z axis. 
-*/
-class SegmentStorage{
-    private:
-        double* positionCoef; 
-        double* velocityCoef;
-        double* accelerationCoef;
-    public:
-        SegmentStorage(const mav_trajectory_generation::Segment& segment);
-};
 
 #endif

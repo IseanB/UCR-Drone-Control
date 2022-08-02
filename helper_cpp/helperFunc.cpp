@@ -1,5 +1,6 @@
 #include "../helper_h/helperFunc.h"
 
+
 bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed, float maxTiltSpeed){
     return( pow(
         pow(this_vel.linear.x, 2) + 
@@ -24,26 +25,37 @@ bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Po
             pow(this_pos.position.z - desired_pos.pose.position.z, 2), .5) <= accuracyDistance );
 }
 
-SegmentStorage::SegmentStorage(const mav_trajectory_generation::Segment& segment){
-    /*Transformation follows 1 Segment->3 Polynomial-> 3 VectorXd->  -> 10 double[]*/
-    mav_trajectory_generation::Polynomial::Vector segmentPoly = segment.getPolynomialsRef();
-    
-    //VectorXd is a typedef of Matrix class
-    // its a "typedef Matrix< double, Dynamic, 1 >"
-    //not seeing segment function and polynomial funciton
+bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Point desired_pos, float accuracyDistance){
+    return( 
+        pow( 
+            pow(this_pos.position.x - desired_pos.x, 2) + 
+            pow(this_pos.position.y - desired_pos.y, 2) + 
+            pow(this_pos.position.z - desired_pos.z, 2), .5) <= accuracyDistance );
+}
 
-    mav_trajectory_generation::Polynomial pos_poly_x = segmentPoly[0];
-    Eigen::VectorXd position_x(10);
 
-    // pos_x.getCoefficients(0);
-    // Eigen::VectorXd position_y = segmentPoly[1].getCoefficients(0); // [1] = y-axis, 0 = position
-    // Eigen::VectorXd position_z = segmentPoly[2].getCoefficients(0); // [2] = z-axis, 0 = position
+mavros_msgs::PositionTarget pointInfoGenerator(const mav_trajectory_generation::Segment& s, double time){
+    mavros_msgs::PositionTarget result;
+    Eigen::VectorXd pos = s.evaluate(time, 0);
+    Eigen::VectorXd vel = s.evaluate(time, 1);
+    Eigen::VectorXd acc = s.evaluate(time, 2);
 
-    //.array() returns a ArrayWrapper<Derived>, .data() returns a Scalar pointer
-    // for(unsigned i = 0; i < 10; ++i){
-    //     std::cout << position_x[i] << std::endl;
-    // }
+    result.header.stamp = ros::Time::now();
+    result.header.frame_id = "map";
 
-    //position_x.array().data().begin();
+    result.coordinate_frame = 1;
 
+    result.position.x = pos[0];
+    result.position.y = pos[1];
+    result.position.z = pos[2];
+
+    result.velocity.x = vel[0];
+    result.velocity.y = vel[1];
+    result.velocity.z = vel[2];
+
+    result.acceleration_or_force.x = acc[0];
+    result.acceleration_or_force.y = acc[1];
+    result.acceleration_or_force.z = acc[2];
+
+    return result;
 }
