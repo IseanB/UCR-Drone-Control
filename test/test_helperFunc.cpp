@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../helper_h/helperFunc.h"
+#include "../helper/helperFunc.h"
 
 TEST(isStationary, allPosAxis){
     geometry_msgs::Twist xaxis_linear_vel;

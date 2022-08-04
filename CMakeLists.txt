@@ -142,7 +142,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/simple_movements_node.cpp)
 add_executable(offboard_node 
-  helper_cpp/helperFunc.cpp
+  helper/src/helperFunc.cpp
   src/offboard.cpp)
   
   ## Rename C++ executable without prefix
