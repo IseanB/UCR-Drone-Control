@@ -2,7 +2,6 @@
 #define HELPERFUNC_H
 
 /*  Includes    */
-#include <ros/ros.h>
 #include <mav_trajectory_generation/polynomial_optimization_linear.h>
 
 #include <geometry_msgs/Pose.h>
@@ -11,10 +10,6 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/Point.h>
 
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/SetMode.h>
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/CommandLong.h>
 #include <mavros_msgs/PositionTarget.h>
 
 /*  Functions   */
@@ -31,8 +26,6 @@ bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Po
 bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Point desired_pos, float accuracyDistance);
 
 mavros_msgs::PositionTarget pointInfoGenerator(const mav_trajectory_generation::Segment& s, double time);
-
-/*  Classes   */
 
 
 #endif

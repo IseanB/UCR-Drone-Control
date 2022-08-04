@@ -1,4 +1,14 @@
+/*  Custom files  */
 #include "../helper/helperFunc.h"
+
+/*  Libraries   */
+#include <ros/ros.h>
+
+/*  Data Types  */
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/CommandLong.h>
 
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
