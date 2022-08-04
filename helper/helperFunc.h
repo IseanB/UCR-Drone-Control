@@ -25,7 +25,6 @@ bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Po
 
 bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Point desired_pos, float accuracyDistance);
 
-mavros_msgs::PositionTarget pointInfoGenerator(const mav_trajectory_generation::Segment& s, double time);
-
+mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segment& s, double time);
 
 #endif

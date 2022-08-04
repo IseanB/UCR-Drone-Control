@@ -191,7 +191,7 @@ int main(int argc, char **argv){
             last_request = ros::Time::now();
         }
 
-        mavros_msgs::PositionTarget output = pointInfoGenerator(segments.at(currSegment), trackerTime);
+        mavros_msgs::PositionTarget output = segmentToPoint(segments.at(currSegment), trackerTime);
         mav_pub.publish(output);
 
         if(reachedLocation(curr_position, output.position, .3) && trackerTime < totalTime){

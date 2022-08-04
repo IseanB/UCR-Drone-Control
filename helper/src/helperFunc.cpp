@@ -34,7 +34,7 @@ bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::Po
 }
 
 
-mavros_msgs::PositionTarget pointInfoGenerator(const mav_trajectory_generation::Segment& s, double time){
+mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segment& s, double time){
     mavros_msgs::PositionTarget result;
     Eigen::VectorXd pos = s.evaluate(time, 0);
     Eigen::VectorXd vel = s.evaluate(time, 1);
