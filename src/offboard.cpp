@@ -1,5 +1,6 @@
 /*  Custom files  */
-#include "../helper/helperFunc.h"
+#include "../helper/conversions.h"
+#include "../helper/computations.h"
 
 /*  Libraries   */
 #include <ros/ros.h>
