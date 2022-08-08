@@ -446,14 +446,3 @@ int main(int argc, char **argv){
    testing::InitGoogleTest(&argc, argv);
    return RUN_ALL_TESTS();
 }
-
-/*
-Makes sures this_pos is not tilted more than maxTilt, degrees, in any axis
-bool isFlat(const geometry_msgs::Pose this_pos, float maxTilt);
-
-Finds magnitude of this_vel values, x and y and z, checks its less than or equal to maxSpeed(m/s)
-bool isStationary(const geometry_msgs::Twist this_vel, float maxSpeed);
-
-Finds distance from curr_pos to desired_pos and checks it's within a accuracyDistance
-bool reachedLocation(const geometry_msgs::Pose this_pos, const geometry_msgs::PoseStamped desired_pos, float accuracyDistance);
-*/
