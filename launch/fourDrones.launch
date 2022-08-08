@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <!-- MAVROS posix SITL environment launch script -->
-    <!-- launches Gazebo environment and 2x: MAVROS, PX4 SITL, and spawns vehicle -->
+    <!-- launches Gazebo environment and 4x: MAVROS, PX4 SITL, and spawns vehicle -->
     <!-- vehicle model and world -->
     <arg name="est" default="ekf2"/>
     <arg name="vehicle" default="iris"/>
