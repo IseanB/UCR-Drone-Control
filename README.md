@@ -24,10 +24,13 @@ This repository uses various control and robotics libraries to autonomously cont
      - Build Quadrotor Model & Setup Gazebo[^10]
      - Install MAVROS, MAVLink, & Setup Workspace [^4]
        - Source Installation (Released/Stable)
+  3. Install [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) Package [^13]
+     - When installing additional system dependencies, replace ```indigo``` with ```melodic```.
+     - Replace ```catkin config --merge-devel``` with ```catkin config --link-devel```
   
-  3. Install QGroundContol [^5]
+  4. Install QGroundContol [^5]
   
-  4. Create a ROS package "simple_movements"
+  5. Create a ROS package "simple_movements"
   ```
   cd ~/[Workspace Name]/src
   mkdir simple_movements
@@ -59,7 +62,18 @@ The helper folder stores any mathematical computations or data conversions neede
 The test folder contains tests for the helper functions in the helper folder. Some of the functions tested are mathematical computations, such as isStationary(...), while others are data conversions like in the segmentToPoint(...) function. GoogleTest is the test framework used.
 
 ---
+## Usage
 
+### Launching World in Gazebo
+```roslaunch px4 mavros_posix_sitl.launch```
+
+### Running offboard_node
+```rosrun simple_movements offboard_node```
+
+### Running Google Tests(Optional)
+```rosrun simple_movements simple_mov_test```
+
+---
 ## Tools
   - C++
   - Catkin(Modified CMake)
@@ -99,3 +113,4 @@ The test folder contains tests for the helper functions in the helper folder. So
   [^10]:https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation (Gazebo)
   [^11]:https://customerconnect.vmware.com/en/downloads/info/slug/desktop_end_user_computing/vmware_workstation_pro/16_0 (VMWare)
   [^12]:https://releases.ubuntu.com/18.04/ (Ubuntu)
+  [^13]:https://github.com/ethz-asl/mav_trajectory_generation#installation-instructions-ubuntu (MAV Trajcetory Generation)
