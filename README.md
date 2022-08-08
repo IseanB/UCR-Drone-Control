@@ -1,6 +1,5 @@
 # UCR Drone Control
 
-
 This repository uses various control and robotics libraries to autonomously control drone(s). Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drone(s) to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drone(s).
 
 ---
@@ -46,6 +45,7 @@ This repository uses various control and robotics libraries to autonomously cont
 2. GStreamer Error [^7]
 3. VMWare REST Error [^8]
 4. Gazebo/Rendering Error [^9]
+
 ---
 ## Documentation
 
@@ -113,4 +113,5 @@ The test folder contains tests for the helper functions in the helper folder. So
   [^10]:https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation (Gazebo)
   [^11]:https://customerconnect.vmware.com/en/downloads/info/slug/desktop_end_user_computing/vmware_workstation_pro/16_0 (VMWare)
   [^12]:https://releases.ubuntu.com/18.04/ (Ubuntu)
+
   [^13]:https://github.com/ethz-asl/mav_trajectory_generation#installation-instructions-ubuntu (MAV Trajcetory Generation)
