@@ -55,9 +55,9 @@
   <depend>rospy</depend>
 
   <depend>geometry_msgs</depend>
-  <depend>mavros_msgs</depend>
   <depend>std_msgs</depend>
   
+  <depend>mavros</depend>
   <depend>mav_trajectory_generation</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
