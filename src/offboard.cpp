@@ -1,4 +1,15 @@
-#include "../helper_h/helperFunc.h"
+/*  Custom files  */
+#include "../helper/conversions.h"
+#include "../helper/computations.h"
+
+/*  Libraries   */
+#include <ros/ros.h>
+
+/*  Data Types  */
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/CommandLong.h>
 
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
@@ -181,7 +192,7 @@ int main(int argc, char **argv){
             last_request = ros::Time::now();
         }
 
-        mavros_msgs::PositionTarget output = pointInfoGenerator(segments.at(currSegment), trackerTime);
+        mavros_msgs::PositionTarget output = segmentToPoint(segments.at(currSegment), trackerTime);
         mav_pub.publish(output);
 
         if(reachedLocation(curr_position, output.position, .3) && trackerTime < totalTime){
