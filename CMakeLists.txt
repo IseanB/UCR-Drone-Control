@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(simple_movements)
+project(drone_control)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -141,10 +141,16 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/simple_movements_node.cpp)
-add_executable(offboard_node 
+add_executable(oneDrone_node 
   helper/src/conversions.cpp
   helper/src/computations.cpp
-  src/offboard.cpp)
+  helper/src/single_control.cpp
+  src/src/oneDrone.cpp)
+  
+# add_executable(singleDroneControl_node 
+#   helper/src/conversions.cpp
+#   helper/src/computations.cpp
+#   src/src/single_control.cpp)
   
   ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -157,9 +163,14 @@ add_executable(offboard_node
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(offboard_node
+target_link_libraries(oneDrone_node
   ${catkin_LIBRARIES}
 )
+
+# target_link_libraries(singleDroneControl_node
+#   ${catkin_LIBRARIES}
+# )
+
 
 #############
 ## Install ##

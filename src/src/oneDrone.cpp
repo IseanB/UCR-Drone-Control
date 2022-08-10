@@ -1,6 +1,6 @@
 /*  Custom files  */
-#include "../helper/conversions.h"
-#include "../helper/computations.h"
+#include "../../helper/conversions.h"
+#include "../../helper/computations.h"
 
 /*  Libraries   */
 #include <ros/ros.h>
@@ -37,7 +37,7 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
 int main(int argc, char **argv){
-    ros::init(argc, argv, "offb_node");
+    ros::init(argc, argv, "only_drone_node");
     setup();
     ros::NodeHandle nh;
     PossiableState droneState = LIFTING_OFF;
