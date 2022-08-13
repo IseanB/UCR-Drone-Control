@@ -1,6 +1,6 @@
 # UCR Drone Control
 
-This repository uses various control and robotics libraries to autonomously control drone(s). Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drone(s) to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drone(s).
+This repository combines a trajectory planning, communication protocol, and robotics libraries to autonomously control drone(s). Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drone(s) to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drone(s).
 
 ---
 
@@ -13,28 +13,35 @@ This repository uses various control and robotics libraries to autonomously cont
   Tip: Only use ```catkin build```, never use ```catkin_make```.
   1. Install VMWare and set up a disc image of Ubuntu 18.04 LTS.[^11][^12] 
      - The rest of these instructions take place in the Ubuntu environment.
-  2. Follow the [Ubuntu Development Enviorment](https://wiki.hanzheteng.com/quadrotor/px4#ubuntu-development-environment) and [Gazebo SITL Simulation](https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation) setup. 
+     - Disable "Accelerate 3D graphics" setting under *Virtual Machine Settings* -> *Display*.
+  2. Install Git on VMWare and set up SSH keys.[^14]
+     - Use ```sudo apt install git``` to install Git.
+  3. Follow the [Ubuntu Development Enviorment](https://wiki.hanzheteng.com/quadrotor/px4#ubuntu-development-environment) and [Gazebo SITL Simulation](https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation) setup. 
      - Install PX4 Related Dependencies. [^1]
-       - Delete PX4 folder after completing steps.
+       - Once *Firmware* folder cloned, use the latest stable version. i.e. Run ```git checkout tags/v1.13.0``` in *Firmware*.
+       - Delete *Firmware* folder after completing steps. 
      - Install ROS Melodic. [^2]
        - Full Desktop Installation
      - Install Simulation Common Dependencies. [^3]
        - Run all code, except line 12, line by line in the terminal.
+       - Running pyulog install command is not necessary.
      - Build Quadrotor Model & Setup Gazebo[^10]
+       - Before building quadcopter models, update Pillow[^6] and GStreamer[^7]
      - Install MAVROS, MAVLink, & Setup Workspace [^4]
        - Source Installation (Released/Stable)
-  3. Install [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) Package [^13]
+  4. Install [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) Package [^13]
      - When installing additional system dependencies, replace ```indigo``` with ```melodic```.
      - Replace ```catkin config --merge-devel``` with ```catkin config --link-devel```
   
-  4. Install QGroundContol [^5]
+  5. Install QGroundContol [^5]
+     - Install Linux/Ubuntu version.
   
-  5. Create a ROS package "simple_movements"
+  6. Create a ROS package "drone_control"
   ```
   cd ~/[Workspace Name]/src
-  mkdir simple_movements
-  cd simple_movements/
-  git clone --recursive https://github.com/IseanB/UCR-Drone-Control.git
+  git clone --recursive git@github.com:IseanB/UCR-Drone-Control.git
+  mv UCR-Drone-Control drone_control
+  cd drone_control
   cd ~/[Workspace Name]
   catkin build
   . ~/[Workspace Name]/devel/setup.bash
@@ -43,8 +50,8 @@ This repository uses various control and robotics libraries to autonomously cont
 ### Installation Bug Fixes:
 1. Pillow Build Error [^6]
 2. GStreamer Error [^7]
-3. VMWare REST Error [^8]
-4. Gazebo/Rendering Error [^9]
+3. Gazebo/Rendering Error [^9]
+4. Symforce Error (Look above, under *Install PX4 Related Dependencies* for fix.)
 
 ---
 ## Documentation
@@ -65,6 +72,8 @@ The test folder contains tests for the helper functions in the helper folder. So
 ## Usage
 
 ### Launching World in Gazebo
+Tip: Before launch run ```echo "export SVGA_VGPU10=0" >> ~/.bashrc``` and ```source ~/.bashrc```, to prevent VMWare REST Error below. [^8] 
+
 ```roslaunch px4 mavros_posix_sitl.launch```
 
 ### Running offboard_node
@@ -113,5 +122,5 @@ The test folder contains tests for the helper functions in the helper folder. So
   [^10]:https://wiki.hanzheteng.com/quadrotor/px4#gazebo-sitl-simulation (Gazebo)
   [^11]:https://customerconnect.vmware.com/en/downloads/info/slug/desktop_end_user_computing/vmware_workstation_pro/16_0 (VMWare)
   [^12]:https://releases.ubuntu.com/18.04/ (Ubuntu)
-
   [^13]:https://github.com/ethz-asl/mav_trajectory_generation#installation-instructions-ubuntu (MAV Trajcetory Generation)
+  [^14]:https://www.digitalocean.com/community/tutorials/how-to-configure-ssh-key-based-authentication-on-a-linux-server (SSH Keys)
