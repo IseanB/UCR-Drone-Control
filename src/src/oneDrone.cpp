@@ -37,31 +37,31 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
 int main(int argc, char **argv){
-    ros::init(argc, argv, "only_drone_node");
+    ros::init(argc, argv, "onlyd_node");
     setup();
     ros::NodeHandle nh;
     PossiableState droneState = LIFTING_OFF;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
-            ("mavros/state", 0, state_cb);
+            ("uav0/mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
-            ("mavros/local_position/pose", 0, updatePose);
+            ("uav0/mavros/local_position/pose", 0, updatePose);
     ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>
-            ("mavros/local_position/velocity", 0, updateVel);
+            ("uav0/mavros/local_position/velocity", 0, updateVel);
 
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
-            ("mavros/cmd/arming");
+            ("uav0/mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
-            ("mavros/set_mode");
+            ("uav0/mavros/set_mode");
     ros::ServiceClient end_flight_client = nh.serviceClient<mavros_msgs::CommandLong>
-            ("mavros/cmd/command");        
+            ("uav0/mavros/cmd/command");        
 
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            ("mavros/setpoint_position/local", 0);
+            ("uav0/mavros/setpoint_position/local", 0);
     ros::Publisher local_vel_pub = nh.advertise<geometry_msgs::Twist>
-            ("mavros/setpoint_velocity/cmd_vel_unstamped", 0);
+            ("uav0/mavros/setpoint_velocity/cmd_vel_unstamped", 0);
     ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
-            ("mavros/setpoint_raw/local", 20);
+            ("uav0/mavros/setpoint_raw/local", 20);
 
 
     // Optimzation Code

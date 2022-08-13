@@ -144,7 +144,7 @@ include_directories(
 add_executable(oneDrone_node 
   helper/src/conversions.cpp
   helper/src/computations.cpp
-  helper/src/single_control.cpp
+  # helper/src/single_control.cpp
   src/src/oneDrone.cpp)
   
 # add_executable(singleDroneControl_node 
