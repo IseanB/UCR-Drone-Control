@@ -16,10 +16,12 @@ geometry_msgs::Pose curr_position;
 geometry_msgs::Twist curr_velocity;
 
 enum PossiableState{
+    GROUND_IDLE,
     LIFTING_OFF,
     IN_TRANSIT,
+    HOVERING,
     LANDING,
-    LANDED
+    SHUTTING_DOWN
 };
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
@@ -34,21 +36,25 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 
+/* Prints crutial information about the inputted trajectory */
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
-
 
 int main(int argc, char **argv)
 {
     // initalizing node
+    std::cout << "Initalizing Drone " + static_cast<std::string>(argv[1]) + " ...\n";
     if(argc != 2){
         ROS_INFO("Error: Drone number required! Format: \"rosrun <package_name> <node_name> <drone#> \" ");
         throw;
     }
-    std::string dPrefix = "uav" + static_cast<std::string>(argv[1]) + "/";
+
     ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]));
-    setup();
     ros::NodeHandle nh;
-    PossiableState droneState = LIFTING_OFF;
+    
+    setup();
+    PossiableState droneState = GROUND_IDLE;
+    std::string dPrefix = "uav" + static_cast<std::string>(argv[1]) + "/";
+    ros::Time last_request = ros::Time::now(); // used for periodic messaging
 
     // all topics
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -80,52 +86,79 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
-    
+    std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
-    geometry_msgs::PoseStamped pose;
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
-
-    //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i){
-        local_pos_pub.publish(pose);
-        ros::spinOnce();
-        rate.sleep();
-    }
-
-    mavros_msgs::SetMode offb_set_mode;
-    offb_set_mode.request.custom_mode = "OFFBOARD";
-
-    mavros_msgs::CommandBool arm_cmd;
-    arm_cmd.request.value = true;
-
-    ros::Time last_request = ros::Time::now();
-
-    while(ros::ok()){
-        if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(5.0))){
-            if( set_mode_client.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent){
-                ROS_INFO("Offboard enabled");
-            }
-            last_request = ros::Time::now();
-        } else {
-            if( !current_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(5.0))){
-                if( arming_client.call(arm_cmd) &&
-                    arm_cmd.response.success){
-                    ROS_INFO("Vehicle armed");
-                }
+    // state based control
+    while(ros::ok() && droneState != SHUTTING_DOWN){
+        if(droneState == GROUND_IDLE){
+            if(ros::Time::now() - last_request > ros::Duration(5.0));
+                ROS_INFO("Ground Idling...");
                 last_request = ros::Time::now();
-            }
+        }else if(droneState == LIFTING_OFF){
+            if(ros::Time::now() - last_request > ros::Duration(5.0));
+                ROS_INFO("Lifting Off...");
+                last_request = ros::Time::now();
+        }else if(droneState == IN_TRANSIT){
+            if(ros::Time::now() - last_request > ros::Duration(30.0));
+                ROS_INFO("In Transit...");
+                last_request = ros::Time::now();
+        }else if(droneState == HOVERING){
+            if(ros::Time::now() - last_request > ros::Duration(5.0));
+                ROS_INFO("Hovering...");
+                last_request = ros::Time::now();
+        }else if(droneState == LANDING){
+            if(ros::Time::now() - last_request > ros::Duration(2.0));
+                ROS_INFO("Landing...");
+                last_request = ros::Time::now();
         }
-
-        local_pos_pub.publish(pose);
-
         ros::spinOnce();
         rate.sleep();
+        
     }
+
+    // geometry_msgs::PoseStamped pose;
+    // pose.pose.position.x = 0;
+    // pose.pose.position.y = 0;
+    // pose.pose.position.z = 2;
+
+    // //send a few setpoints before starting
+    // for(int i = 100; ros::ok() && i > 0; --i){
+    //     local_pos_pub.publish(pose);
+    //     ros::spinOnce();
+    //     rate.sleep();
+    // }
+
+    // mavros_msgs::SetMode offb_set_mode;
+    // offb_set_mode.request.custom_mode = "OFFBOARD";
+    // mavros_msgs::CommandBool arm_cmd;
+    // arm_cmd.request.value = true;
+
+    // ros::Time last_request = ros::Time::now();
+
+    // while(ros::ok()){
+    //     if( current_state.mode != "OFFBOARD" &&
+    //         (ros::Time::now() - last_request > ros::Duration(5.0))){
+    //         if( set_mode_client.call(offb_set_mode) &&
+    //             offb_set_mode.response.mode_sent){
+    //             ROS_INFO("Offboard enabled");
+    //         }
+    //         last_request = ros::Time::now();
+    //     } else {
+    //         if( !current_state.armed &&
+    //             (ros::Time::now() - last_request > ros::Duration(5.0))){
+    //             if( arming_client.call(arm_cmd) &&
+    //                 arm_cmd.response.success){
+    //                 ROS_INFO("Vehicle armed");
+    //             }
+    //             last_request = ros::Time::now();
+    //         }
+    //     }
+
+    //     local_pos_pub.publish(pose);
+
+    //     ros::spinOnce();
+    //     rate.sleep();
+    // }
 
     return 0;
 }
@@ -168,10 +201,10 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.y = inputPose->twist.angular.y;
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
+
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
 //     mav_trajectory_generation::Trajectory trajectory;
 //     trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
-
 //     std::cout << "Trajectory Properties:\n" << std::endl;
 //     std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
 //     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
