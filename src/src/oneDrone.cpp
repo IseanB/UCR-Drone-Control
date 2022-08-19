@@ -34,7 +34,7 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 
-void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
+// void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "onlyd_node");
@@ -297,19 +297,19 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
-void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
-    mav_trajectory_generation::Trajectory trajectory;
-    trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
+// void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
+//     mav_trajectory_generation::Trajectory trajectory;
+//     trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
 
-    std::cout << "Trajectory Properties:\n" << std::endl;
-    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-    std::cout << "Sample Optimized Function Information: \n\n"; 
-    /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
-    printSegment(std::cout, allSegments.at(0), 0);
-    /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
-    printSegment(std::cout, allSegments.at(0), 1);
-    /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
-    printSegment(std::cout, allSegments.at(0), 2);
-}
+//     std::cout << "Trajectory Properties:\n" << std::endl;
+//     std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+//     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+//     std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+//     std::cout << "Sample Optimized Function Information: \n\n"; 
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
+//     printSegment(std::cout, allSegments.at(0), 0);
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
+//     printSegment(std::cout, allSegments.at(0), 1);
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
+//     printSegment(std::cout, allSegments.at(0), 2);
+// }
