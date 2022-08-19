@@ -11,6 +11,7 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandLong.h>
 #include <std_msgs/String.h>
+#include "drone_control/dcontrol.h"
 
 enum PossiableState{
     GROUND_IDLE,
@@ -25,6 +26,7 @@ mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
 geometry_msgs::Twist curr_velocity;
 PossiableState droneState = GROUND_IDLE;
+drone_control::dcontrol curr_message;
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
 void setup();
@@ -41,8 +43,8 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 /* Prints crutial information about the inputted trajectory */
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
-/* Stores msgs from multi control node IN */
-void storeCommand(const std_msgs::String::ConstPtr& inputMsg);
+/* Stores msgs from multi control node in last*/
+void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg);
 
 int main(int argc, char **argv)
 {
@@ -81,11 +83,9 @@ int main(int argc, char **argv)
     ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
             (dPrefix +"mavros/setpoint_raw/local", 20);
 
-    // subscribes to mutli_control
-    ros::Subscriber command_sub = nh.subscribe<std_msgs::String>
-            ("drones_cmd", 0, storeCommand);
-    ros::Subscriber target_sub = nh.subscribe<geometry_msgs::Point>
-            ("drone" + static_cast<std::string>(argv[1]) +"/target", 0, store);
+    // mutli control subscribers
+    ros::Subscriber multi_sub = nh.subscribe<drone_control::dcontrol>
+            ("drone1_cmds", 0, storeCommand);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
@@ -172,36 +172,37 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
-void storeCommand(const std_msgs::String::ConstPtr& inputMsg){
-    if(inputMsg->data == "LIFT"){
-        if(droneState == GROUND_IDLE);
-            droneState = LIFTING_OFF;
-        else;
-            ROS_INFO("LIFT Error: Drone is off the ground.");
+void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
+    std::string inputCmd = inputMsg->command.data;
+    if(inputCmd == "E_STOP"){
+        droneState = SHUTTING_DOWN;
     }
-    else if(inputMsg->data == "STOP"){
-        if(droneState == GROUND_IDLE || droneState == HOVERING);
+    else if(inputCmd == "LIFT"){
+        if(droneState == GROUND_IDLE){
+            droneState = LIFTING_OFF;
+        }
+        else{
+            ROS_INFO("LIFT Error: Drone is off the ground.");
+        }
+    }
+    else if(inputCmd == "STOP"){
+        if(droneState == GROUND_IDLE){
             ROS_INFO("STOP Error: Drone is already stationary.");
+        }
         else;
             droneState = HOVERING;
     }
-    else if(inputMsg->data == "LAND"){
-        if(droneState == LANDING || droneState == GROUND_IDLE);
+    else if(inputCmd == "LAND"){
+        if(droneState == LANDING || droneState == GROUND_IDLE){
             ROS_INFO("LAND Error: Drone is already landing/landed.");
+        }
         else;
             droneState = LANDING;
     }
-    else;
+    else{
         ROS_INFO("Error: Invalid Command.");
+    }
 }
-// enum PossiableState{
-//     GROUND_IDLE,
-//     LIFTING_OFF,
-//     IN_TRANSIT,
-//     HOVERING,
-//     LANDING,
-//     SHUTTING_DOWN
-// };
 
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
 //     mav_trajectory_generation::Trajectory trajectory;
