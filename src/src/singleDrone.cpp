@@ -10,6 +10,7 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandLong.h>
+#include <std_msgs/String.h>
 
 mavros_msgs::State current_state;
 geometry_msgs::Pose curr_position;
@@ -39,12 +40,14 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 /* Prints crutial information about the inputted trajectory */
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
 
+/* Stores msgs from multi control node*/
+void storeCommand(const std_msgs::String::ConstPtr& inputMsg);
+
 int main(int argc, char **argv)
 {
     // initalizing node
-    std::cout << "Initalizing Drone " + static_cast<std::string>(argv[1]) + " ...\n";
+    std::cout << "Initalizing Drone " + static_cast<std::string>(argv[1]) + " ..." << std::endl;
     if(argc != 2){
-        ROS_INFO("Error: Drone number required! Format: \"rosrun <package_name> <node_name> <drone#> \" ");
         throw;
     }
 
@@ -78,6 +81,10 @@ int main(int argc, char **argv)
     ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
             (dPrefix +"mavros/setpoint_raw/local", 20);
 
+    // subscribes to mutli_control
+    ros::Subscriber command_sub = nh.subscribe<std_msgs::String>
+            ("drone1_info", 0, storeCommand);
+
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
 
@@ -91,25 +98,30 @@ int main(int argc, char **argv)
     // state based control
     while(ros::ok() && droneState != SHUTTING_DOWN){
         if(droneState == GROUND_IDLE){
-            if(ros::Time::now() - last_request > ros::Duration(5.0));
+            if(ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("Ground Idling...");
                 last_request = ros::Time::now();
+            }
         }else if(droneState == LIFTING_OFF){
-            if(ros::Time::now() - last_request > ros::Duration(5.0));
+            if(ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("Lifting Off...");
                 last_request = ros::Time::now();
+            }
         }else if(droneState == IN_TRANSIT){
-            if(ros::Time::now() - last_request > ros::Duration(30.0));
+            if(ros::Time::now() - last_request > ros::Duration(30.0)){
                 ROS_INFO("In Transit...");
                 last_request = ros::Time::now();
+            }
         }else if(droneState == HOVERING){
-            if(ros::Time::now() - last_request > ros::Duration(5.0));
+            if(ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("Hovering...");
                 last_request = ros::Time::now();
+            }
         }else if(droneState == LANDING){
-            if(ros::Time::now() - last_request > ros::Duration(2.0));
+            if(ros::Time::now() - last_request > ros::Duration(2.0)){
                 ROS_INFO("Landing...");
                 last_request = ros::Time::now();
+            }
         }
         ros::spinOnce();
         rate.sleep();
@@ -202,6 +214,10 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
+
+void storeCommand(const std_msgs::String::ConstPtr& inputMsg){
+    ROS_INFO("msg recived");
+}
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
 //     mav_trajectory_generation::Trajectory trajectory;
 //     trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations

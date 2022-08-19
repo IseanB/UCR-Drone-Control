@@ -144,9 +144,18 @@ include_directories(
 add_executable(oneDrone_node 
   helper/src/conversions.cpp
   helper/src/computations.cpp
-  # helper/src/single_control.cpp
   src/src/oneDrone.cpp)
-  
+
+add_executable(multi_control
+  helper/src/conversions.cpp
+  helper/src/computations.cpp
+  src/src/multiDrone.cpp)
+
+add_executable(single_control 
+  helper/src/conversions.cpp
+  helper/src/computations.cpp
+  src/src/singleDrone.cpp)
+
 # add_executable(singleDroneControl_node 
 #   helper/src/conversions.cpp
 #   helper/src/computations.cpp
@@ -166,6 +175,15 @@ add_executable(oneDrone_node
 target_link_libraries(oneDrone_node
   ${catkin_LIBRARIES}
 )
+
+target_link_libraries(multi_control
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(single_control
+  ${catkin_LIBRARIES}
+)
+
 
 # target_link_libraries(singleDroneControl_node
 #   ${catkin_LIBRARIES}
