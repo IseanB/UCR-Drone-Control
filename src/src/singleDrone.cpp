@@ -26,6 +26,7 @@ enum PossiableState{
 
 mavros_msgs::State current_state;
 geometry_msgs::PoseStamped curr_position;
+geometry_msgs::PoseStamped hover_position;
 geometry_msgs::Twist curr_velocity;
 geometry_msgs::PoseStamped curr_target;
 drone_control::dcontrol curr_message;
@@ -68,6 +69,7 @@ int main(int argc, char **argv)
     
     setup();
     std::string dPrefix = "uav" + static_cast<std::string>(argv[1]) + "/";
+    std::string uavName = "drone" + static_cast<std::string>(argv[1]);
     ros::Time last_request = ros::Time::now(); // used for periodic messaging
 
     // all topics
@@ -94,7 +96,7 @@ int main(int argc, char **argv)
 
     // mutli control subscribers
     ros::Subscriber multi_sub = nh.subscribe<drone_control::dcontrol>
-            ("drone1_cmds", 0, storeCommand);
+            (uavName + "_cmds", 0, storeCommand);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
@@ -114,23 +116,18 @@ int main(int argc, char **argv)
                 last_request = ros::Time::now();
             }
         }else if(droneState == LIFTING_OFF){
-            if(ros::Time::now() - last_request > ros::Duration(5.0)){
-                ROS_INFO("Lifting Off...");
-                last_request = ros::Time::now();
-            }
             if( current_state.mode != "OFFBOARD" &&
                 (ros::Time::now() - last_request > ros::Duration(3))){
                 if( set_mode_client.call(offb_set_mode) &&
                     offb_set_mode.response.mode_sent){
-                    ROS_INFO("Offboard enabled");
                 }
                 last_request = ros::Time::now();
             } else {
                 if( !current_state.armed &&
-                    (ros::Time::now() - last_request > ros::Duration(1.5))){
+                    (ros::Time::now() - last_request > ros::Duration(3))){
                     if( arming_client.call(arm_cmd) &&
                         arm_cmd.response.success){
-                        ROS_INFO("Vehicle armed");
+                        ROS_INFO(uavName, " armed");
                     }
                     last_request = ros::Time::now();
                 }
@@ -139,22 +136,22 @@ int main(int argc, char **argv)
             if(curr_target.pose.position.x == 0 && curr_target.pose.position.y == 0 && curr_target.pose.position.z == 0){
                 local_pos_pub.publish(default_liftoff_pos);
                 if((reachedLocation(curr_position, default_liftoff_pos, .1)) && (isStationary(curr_velocity, .05))){
+                    hover_position = default_liftoff_pos;
                     droneState = HOVERING;
+                    ROS(uavName, " Hovering");
                 }
             }
             else{
                 local_pos_pub.publish(curr_target);
                 if((reachedLocation(curr_position, curr_target, .1)) && (isStationary(curr_velocity, .05))){
+                    hover_position = curr_target;
                     droneState = HOVERING;
+                    ROS(uavName, " Hovering");
                 }
             }
 
         }else if(droneState == HOVERING){
-            if(ros::Time::now() - last_request > ros::Duration(5.0)){
-                ROS_INFO("Hovering...");
-                last_request = ros::Time::now();
-            }
-            
+            local_pos_pub.publish(hover_position);
         }else if(droneState == IN_TRANSIT){
             if(ros::Time::now() - last_request > ros::Duration(30.0)){
                 ROS_INFO("In Transit...");
@@ -192,6 +189,10 @@ void setup(){
     curr_target.pose.position.x = 0;
     curr_target.pose.position.y = 0;
     curr_target.pose.position.z = 0;
+
+    hover_position.pose.position.x = 0;
+    hover_position.pose.position.y = 0;
+    hover_position.pose.position.z = 0;
 
     droneState = GROUND_IDLE;
 
@@ -256,6 +257,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             ROS_INFO("STOP Error: Drone is already stationary.");
         }
         else;
+            hover_position = curr_position;
             droneState = HOVERING;
     }
     else if(inputCmd == "LAND"){
