@@ -17,6 +17,7 @@ bool isFlat(const geometry_msgs::Pose& this_pos, float maxTilt = 0);
 bool isStationary(const geometry_msgs::Twist& this_vel, float maxSpeed = 0, float maxTiltSpeed = 0);
 
 /*Finds distance from curr_pos to desired_pos and checks it's within a accuracyDistance*/
+bool reachedLocation(const geometry_msgs::PoseStamped& this_pos, const geometry_msgs::PoseStamped& desired_pos, float accuracyDistance);
 bool reachedLocation(const geometry_msgs::Pose& this_pos, const geometry_msgs::PoseStamped& desired_pos, float accuracyDistance);
 bool reachedLocation(const geometry_msgs::Pose& this_pos, const geometry_msgs::Point& desired_pos, float accuracyDistance);
 

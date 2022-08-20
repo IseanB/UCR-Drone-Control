@@ -54,6 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   dcontrol.msg
+  dresponse.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -142,10 +143,6 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/simple_movements_node.cpp)
-add_executable(oneDrone_node 
-  helper/src/conversions.cpp
-  helper/src/computations.cpp
-  src/src/oneDrone.cpp)
 
 add_executable(multi_control
   helper/src/conversions.cpp
@@ -173,9 +170,6 @@ add_executable(single_control
 add_dependencies(multi_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(oneDrone_node
-  ${catkin_LIBRARIES}
-)
 
 target_link_libraries(multi_control
   ${catkin_LIBRARIES}
@@ -238,9 +232,9 @@ target_link_libraries(single_control
 #############
 
 ## Add gtest based cpp test target and link libraries
-catkin_add_executable_with_gtest(simple_mov_test 
-  helper/src/computations.cpp
-  test/test_helperFunc.cpp)
+# catkin_add_executable_with_gtest(simple_mov_test 
+#   helper/src/computations.cpp
+#   test/test_helperFunc.cpp)
 # if(TARGET simple_mov_test)
 #   target_link_libraries(simple_mov_test ${PROJECT_NAME})
 # endif()
