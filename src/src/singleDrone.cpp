@@ -16,17 +16,26 @@
 enum PossiableState{
     GROUND_IDLE,
     LIFTING_OFF,
-    IN_TRANSIT,
     HOVERING,
+    IN_TRANSIT,
     LANDING,
     SHUTTING_DOWN // A drone is only momentarily in this state
 };
 
+//Must use commands to start,end. Add point
+
 mavros_msgs::State current_state;
-geometry_msgs::Pose curr_position;
+geometry_msgs::PoseStamped curr_position;
 geometry_msgs::Twist curr_velocity;
-PossiableState droneState = GROUND_IDLE;
+geometry_msgs::PoseStamped curr_target;
 drone_control::dcontrol curr_message;
+
+geometry_msgs::PoseStamped default_liftoff_pos;
+mavros_msgs::SetMode offb_set_mode;
+mavros_msgs::CommandBool arm_cmd;
+
+PossiableState droneState;
+
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
 void setup();
@@ -109,14 +118,46 @@ int main(int argc, char **argv)
                 ROS_INFO("Lifting Off...");
                 last_request = ros::Time::now();
             }
-        }else if(droneState == IN_TRANSIT){
-            if(ros::Time::now() - last_request > ros::Duration(30.0)){
-                ROS_INFO("In Transit...");
+            if( current_state.mode != "OFFBOARD" &&
+                (ros::Time::now() - last_request > ros::Duration(3))){
+                if( set_mode_client.call(offb_set_mode) &&
+                    offb_set_mode.response.mode_sent){
+                    ROS_INFO("Offboard enabled");
+                }
                 last_request = ros::Time::now();
+            } else {
+                if( !current_state.armed &&
+                    (ros::Time::now() - last_request > ros::Duration(1.5))){
+                    if( arming_client.call(arm_cmd) &&
+                        arm_cmd.response.success){
+                        ROS_INFO("Vehicle armed");
+                    }
+                    last_request = ros::Time::now();
+                }
             }
+
+            if(curr_target.pose.position.x == 0 && curr_target.pose.position.y == 0 && curr_target.pose.position.z == 0){
+                local_pos_pub.publish(default_liftoff_pos);
+                if((reachedLocation(curr_position, default_liftoff_pos, .1)) && (isStationary(curr_velocity, .05))){
+                    droneState = HOVERING;
+                }
+            }
+            else{
+                local_pos_pub.publish(curr_target);
+                if((reachedLocation(curr_position, curr_target, .1)) && (isStationary(curr_velocity, .05))){
+                    droneState = HOVERING;
+                }
+            }
+
         }else if(droneState == HOVERING){
             if(ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("Hovering...");
+                last_request = ros::Time::now();
+            }
+            
+        }else if(droneState == IN_TRANSIT){
+            if(ros::Time::now() - last_request > ros::Duration(30.0)){
+                ROS_INFO("In Transit...");
                 last_request = ros::Time::now();
             }
         }else if(droneState == LANDING){
@@ -133,13 +174,13 @@ int main(int argc, char **argv)
     return 0;
 }
 void setup(){
-    curr_position.position.x = 0;
-    curr_position.position.y = 0;
-    curr_position.position.z = 0;
-    curr_position.orientation.x = 0;
-    curr_position.orientation.y = 0;
-    curr_position.orientation.z = 0;
-    curr_position.orientation.w = 0;
+    curr_position.pose.position.x = 0;
+    curr_position.pose.position.y = 0;
+    curr_position.pose.position.z = 0;
+    curr_position.pose.orientation.x = 0;
+    curr_position.pose.orientation.y = 0;
+    curr_position.pose.orientation.z = 0;
+    curr_position.pose.orientation.w = 0;
 
     curr_velocity.linear.x = 0;
     curr_velocity.linear.y = 0;
@@ -147,6 +188,19 @@ void setup(){
     curr_velocity.angular.x = 0;
     curr_velocity.angular.y = 0;
     curr_velocity.angular.z = 0;
+
+    curr_target.pose.position.x = 0;
+    curr_target.pose.position.y = 0;
+    curr_target.pose.position.z = 0;
+
+    droneState = GROUND_IDLE;
+
+    default_liftoff_pos.pose.position.x = curr_position.pose.position.x;
+    default_liftoff_pos.pose.position.y = curr_position.pose.position.y;
+    default_liftoff_pos.pose.position.z = 2;
+
+    offb_set_mode.request.custom_mode = "OFFBOARD";
+    arm_cmd.request.value = true;
 }
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
@@ -154,13 +208,14 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
 }
 
 void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose){
-    curr_position.position.x = (inputPose->pose).position.x;
-    curr_position.position.y = (inputPose->pose).position.y;
-    curr_position.position.z = (inputPose->pose).position.z;
-    curr_position.orientation.x = (inputPose->pose).orientation.x;
-    curr_position.orientation.y = (inputPose->pose).orientation.y;
-    curr_position.orientation.z = (inputPose->pose).orientation.z;
-    curr_position.orientation.w = (inputPose->pose).orientation.w;
+    curr_position = *inputPose;
+    // curr_position.pose.position.x = (inputPose->pose).position.x;
+    // curr_position.pose.position.y = (inputPose->pose).position.y;
+    // curr_position.pose.position.z = (inputPose->pose).position.z;
+    // curr_position.pose.orientation.x = (inputPose->pose).orientation.x;
+    // curr_position.pose.orientation.y = (inputPose->pose).orientation.y;
+    // curr_position.pose.orientation.z = (inputPose->pose).orientation.z;
+    // curr_position.pose.orientation.w = (inputPose->pose).orientation.w;
 }
 
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
@@ -173,6 +228,17 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
 }
 
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
+    curr_message = *inputMsg;
+    //handles input target
+    if(inputMsg->target.x != curr_target.pose.position.x || 
+       inputMsg->target.y != curr_target.pose.position.y ||
+       inputMsg->target.z != curr_target.pose.position.z){
+        curr_target.pose.position.x = inputMsg->target.x;  
+        curr_target.pose.position.y = inputMsg->target.y;
+        curr_target.pose.position.z = inputMsg->target.z;
+    }
+    
+    //handles input command
     std::string inputCmd = inputMsg->command.data;
     if(inputCmd == "E_STOP"){
         droneState = SHUTTING_DOWN;

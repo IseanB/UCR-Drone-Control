@@ -12,10 +12,11 @@ int main(int argc, char **argv)
             ("drone1_cmds", 0);
     
     drone_control::dcontrol msg;
+    msg.command.data = "LIFT";
+    msg.target.z = 1;
     while(ros::ok()){
         if(ros::Time::now() - last_request > ros::Duration(10.0)){
             ROS_INFO("info sent");
-            msg.command.data = "LIFT";
             drone_cmd_pub.publish(msg);
             last_request = ros::Time::now();
         }
