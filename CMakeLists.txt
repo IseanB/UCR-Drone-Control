@@ -115,6 +115,7 @@ rospy
 std_msgs 
 geometry_msgs 
 mav_trajectory_generation
+message_runtime
 #  DEPENDS system_lib
 )
 
@@ -125,7 +126,7 @@ mav_trajectory_generation
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
+  # include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -167,7 +168,8 @@ add_executable(single_control
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(multi_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(multi_control drone_control_generate_messages)
+add_dependencies(single_control drone_control_generate_messages)
 
 ## Specify libraries to link a library or executable target against
 
