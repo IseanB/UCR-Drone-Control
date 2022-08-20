@@ -12,6 +12,8 @@
 #include <mavros_msgs/CommandLong.h>
 #include <std_msgs/String.h>
 #include "drone_control/dcontrol.h"
+#include "drone_control/dresponse.h"
+#include <queue>
 
 enum PossiableState{
     GROUND_IDLE,
@@ -22,24 +24,38 @@ enum PossiableState{
     SHUTTING_DOWN // A drone is only momentarily in this state
 };
 
+struct TrajectoryGroupedInfo{
+    mav_trajectory_generation::Trajectory trajectoryThis;
+    geometry_msgs::PoseStamped startPoint;
+    geometry_msgs::PoseStamped endPoint;
+    float trajectoryTime;
+    TrajectoryGroupedInfo(mav_trajectory_generation::Trajectory inputTraj, geometry_msgs::PoseStamped inputStart, geometry_msgs::PoseStamped inputEnd, float inputTime) : trajectoryThis(inputTraj), startPoint(inputStart), endPoint(inputEnd), trajectoryTime(inputTime) {};
+};
 //Must use commands to start,end. Add point
 
 mavros_msgs::State current_state;
 geometry_msgs::PoseStamped curr_position;
-geometry_msgs::PoseStamped hover_position;
 geometry_msgs::Twist curr_velocity;
 geometry_msgs::PoseStamped curr_target;
 drone_control::dcontrol curr_message;
 
+geometry_msgs::PoseStamped hover_position;
+drone_control::dresponse last_response;
 geometry_msgs::PoseStamped default_liftoff_pos;
 mavros_msgs::SetMode offb_set_mode;
 mavros_msgs::CommandBool arm_cmd;
 
+std::string uavName;
 PossiableState droneState;
+ros::Publisher multi_info_pub;
 
+std::queue<TrajectoryGroupedInfo*> curr_trajectories;
+std::queue<geometry_msgs::PoseStamped> curr_points;
+float currTime;
+float currTrajTime;
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
-void setup();
+void setup(ros::NodeHandle& nodehandler,std::string droneNum);
 
 /* Used for initiating contact with drone and setting it to OFFBOARD mode */
 void state_cb(const mavros_msgs::State::ConstPtr& msg);
@@ -56,6 +72,8 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 /* Stores msgs from multi control node in last*/
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg);
 
+void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx, int by, int bz, int ex, int ey, int ez);
+
 int main(int argc, char **argv)
 {
     // initalizing node
@@ -64,15 +82,14 @@ int main(int argc, char **argv)
         throw;
     }
 
-    ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]));
+    ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]) + "_control");
     ros::NodeHandle nh;
     
-    setup();
+    setup(nh, static_cast<std::string>(argv[1]));
     std::string dPrefix = "uav" + static_cast<std::string>(argv[1]) + "/";
-    std::string uavName = "drone" + static_cast<std::string>(argv[1]);
     ros::Time last_request = ros::Time::now(); // used for periodic messaging
 
-    // all topics
+    // all subs/services/pubs
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
             (dPrefix +"mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
@@ -94,8 +111,8 @@ int main(int argc, char **argv)
     ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
             (dPrefix +"mavros/setpoint_raw/local", 20);
 
-    // mutli control subscribers
-    ros::Subscriber multi_sub = nh.subscribe<drone_control::dcontrol>
+    // mutli control sub/pub
+    ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>
             (uavName + "_cmds", 0, storeCommand);
 
     //the setpoint publishing rate MUST be faster than 2Hz
@@ -127,7 +144,6 @@ int main(int argc, char **argv)
                     (ros::Time::now() - last_request > ros::Duration(3))){
                     if( arming_client.call(arm_cmd) &&
                         arm_cmd.response.success){
-                        ROS_INFO(uavName, " armed");
                     }
                     last_request = ros::Time::now();
                 }
@@ -138,7 +154,8 @@ int main(int argc, char **argv)
                 if((reachedLocation(curr_position, default_liftoff_pos, .1)) && (isStationary(curr_velocity, .05))){
                     hover_position = default_liftoff_pos;
                     droneState = HOVERING;
-                    ROS(uavName, " Hovering");
+                    last_response.response.data = "REACHED";
+                    multi_info_pub.publish(last_response);
                 }
             }
             else{
@@ -146,14 +163,17 @@ int main(int argc, char **argv)
                 if((reachedLocation(curr_position, curr_target, .1)) && (isStationary(curr_velocity, .05))){
                     hover_position = curr_target;
                     droneState = HOVERING;
-                    ROS(uavName, " Hovering");
+                    last_response.response.data = "REACHED";
+                    multi_info_pub.publish(last_response);
                 }
             }
 
         }else if(droneState == HOVERING){
             local_pos_pub.publish(hover_position);
         }else if(droneState == IN_TRANSIT){
-            if(ros::Time::now() - last_request > ros::Duration(30.0)){
+            //if need to update trajectory
+            // if(curr_trajectories.size() == 0 || curr_target != curr_trajectories.front.)
+            if(ros::Time::now() - last_request > ros::Duration(10.0)){
                 ROS_INFO("In Transit...");
                 last_request = ros::Time::now();
             }
@@ -165,12 +185,11 @@ int main(int argc, char **argv)
         }
         ros::spinOnce();
         rate.sleep();
-        
     }
 
     return 0;
 }
-void setup(){
+void setup(ros::NodeHandle& nodehandler, std::string droneNum){
     curr_position.pose.position.x = 0;
     curr_position.pose.position.y = 0;
     curr_position.pose.position.z = 0;
@@ -195,6 +214,12 @@ void setup(){
     hover_position.pose.position.z = 0;
 
     droneState = GROUND_IDLE;
+    multi_info_pub = nodehandler.advertise<drone_control::dresponse>
+            (uavName + "_info", 0);
+    last_response.response.data = "NULL";
+
+    currTime = 0;
+    currTrajTime = 0;
 
     default_liftoff_pos.pose.position.x = curr_position.pose.position.x;
     default_liftoff_pos.pose.position.y = curr_position.pose.position.y;
@@ -202,6 +227,7 @@ void setup(){
 
     offb_set_mode.request.custom_mode = "OFFBOARD";
     arm_cmd.request.value = true;
+    uavName = "drone" + droneNum;
 }
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
@@ -210,13 +236,6 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
 
 void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose){
     curr_position = *inputPose;
-    // curr_position.pose.position.x = (inputPose->pose).position.x;
-    // curr_position.pose.position.y = (inputPose->pose).position.y;
-    // curr_position.pose.position.z = (inputPose->pose).position.z;
-    // curr_position.pose.orientation.x = (inputPose->pose).orientation.x;
-    // curr_position.pose.orientation.y = (inputPose->pose).orientation.y;
-    // curr_position.pose.orientation.z = (inputPose->pose).orientation.z;
-    // curr_position.pose.orientation.w = (inputPose->pose).orientation.w;
 }
 
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
@@ -228,33 +247,65 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
+void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx, int by, int bz, int ex, int ey, int ez){
+    Eigen::Vector3d startPoint(bx,by,bz);
+    Eigen::Vector3d endPoint(ex,ey,ez);
+    
+    mav_trajectory_generation::Segment::Vector segments;
+    mav_trajectory_generation::Vertex::Vector vertices;
+    const int dimension = 3;
+    const int derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
+    mav_trajectory_generation::Vertex start(dimension), end(dimension);
+
+    start.makeStartOrEnd(startPoint, derivative_to_optimize);
+    vertices.push_back(start);
+
+    end.makeStartOrEnd(endPoint, derivative_to_optimize);
+    vertices.push_back(end);
+    
+    std::vector<double> segment_times;
+    const double v_max = 2.0;
+    const double a_max = 2.0;
+    segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+
+    const int N = 10;// needs to be at least 10 for snap, 8 for jerk
+    mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
+    opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
+    opt.solveLinear();
+
+    opt.getSegments(&segments);// fills "segments" variable with segments of the path
+    inputTrajectory.setSegments(segments);
+}
+
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
+    last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
-    //handles input target
-    if(inputMsg->target.x != curr_target.pose.position.x || 
-       inputMsg->target.y != curr_target.pose.position.y ||
-       inputMsg->target.z != curr_target.pose.position.z){
-        curr_target.pose.position.x = inputMsg->target.x;  
-        curr_target.pose.position.y = inputMsg->target.y;
-        curr_target.pose.position.z = inputMsg->target.z;
-    }
     
     //handles input command
     std::string inputCmd = inputMsg->command.data;
-    if(inputCmd == "E_STOP"){
+    if(inputCmd == "SHUTOFF"){
         droneState = SHUTTING_DOWN;
     }
     else if(inputCmd == "LIFT"){
         if(droneState == GROUND_IDLE){
+            if(inputMsg->target.x != curr_target.pose.position.x || 
+            inputMsg->target.y != curr_target.pose.position.y ||
+            inputMsg->target.z != curr_target.pose.position.z){
+                curr_target.pose.position.x = inputMsg->target.x;  
+                curr_target.pose.position.y = inputMsg->target.y;
+                curr_target.pose.position.z = inputMsg->target.z;
+            }
             droneState = LIFTING_OFF;
         }
         else{
             ROS_INFO("LIFT Error: Drone is off the ground.");
+            last_response.response.data = "ERROR";
         }
     }
     else if(inputCmd == "STOP"){
         if(droneState == GROUND_IDLE){
             ROS_INFO("STOP Error: Drone is already stationary.");
+            last_response.response.data = "ERROR";
         }
         else;
             hover_position = curr_position;
@@ -263,13 +314,80 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
     else if(inputCmd == "LAND"){
         if(droneState == LANDING || droneState == GROUND_IDLE){
             ROS_INFO("LAND Error: Drone is already landing/landed.");
+            last_response.response.data = "ERROR";
         }
         else;
             droneState = LANDING;
     }
+    else if(inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW"){
+        if(droneState == GROUND_IDLE){
+            ROS_INFO("TRANSIT Error: Run LIFT command first.");
+            last_response.response.data = "ERROR";
+        }
+        else if(droneState == LIFTING_OFF){
+            ROS_INFO("TRANSIT Error: Wait for liftoff completion.");
+            last_response.response.data = "ERROR";
+        }
+        else if(droneState == LANDING){
+            ROS_INFO("TRANSIT Error: Wait for landing completion.");
+            last_response.response.data = "ERROR";
+        }
+        else if(inputCmd == "TRANSIT_ADD"){// check logic
+            if(curr_trajectories.size() == 0){
+                Eigen::Vector3d starting(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+            } else{
+                TrajectoryGroupedInfo* last_traj = curr_trajectories.back();    
+                Eigen::Vector3d starting(last_traj->endPoint.pose.position.x, last_traj->endPoint.pose.position.y, last_traj->endPoint.pose.position.z);
+            }
+            mav_trajectory_generation::Trajectory outputTraj;
+            Eigen::Vector3d ending(inputMsg->target.x, inputMsg->target.y, inputMsg->target.z);
+            generateTraj(outputTraj, starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]);
+
+            geometry_msgs::PoseStamped startingPoint;
+            startingPoint.pose.position.x = starting[0]; 
+            startingPoint.pose.position.y = starting[1]; 
+            startingPoint.pose.position.z = starting[2];
+            geometry_msgs::PoseStamped endingPoint;
+            endingPoint.pose.position.x = ending[0];
+            endingPoint.pose.position.y = ending[1];
+            endingPoint.pose.position.z = ending[2];
+
+            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputTraj, startingPoint, endingPoint, static_cast<float>(outputTraj.getSegmentTimes().at(0)));
+            curr_trajectories.push(outputGroupedInfo);
+            droneState = IN_TRANSIT;
+        }
+        else{
+            // setup transit new
+            while(curr_trajectories.size() != 0){
+                TrajectoryGroupedInfo* first_traj = curr_trajectories.front();
+                delete first_traj;
+                curr_trajectories.pop();
+            }
+            mav_trajectory_generation::Trajectory outputTraj;
+            Eigen::Vector3d starting(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+            Eigen::Vector3d ending(inputMsg->target.x, inputMsg->target.y, inputMsg->target.z);
+            generateTraj(outputTraj, starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]);
+
+            geometry_msgs::PoseStamped startingPoint;
+            startingPoint.pose.position.x = starting[0]; 
+            startingPoint.pose.position.y = starting[1]; 
+            startingPoint.pose.position.z = starting[2];
+            geometry_msgs::PoseStamped endingPoint;
+            endingPoint.pose.position.x = ending[0];
+            endingPoint.pose.position.y = ending[1];
+            endingPoint.pose.position.z = ending[2];
+
+            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputTraj, startingPoint, endingPoint, static_cast<float>(outputTraj.getSegmentTimes().at(0)));
+            curr_trajectories.push(outputGroupedInfo);
+            
+            droneState = IN_TRANSIT;
+        }
+    }
     else{
         ROS_INFO("Error: Invalid Command.");
+        last_response.response.data = "ERROR";
     }
+    multi_info_pub.publish(last_response);
 }
 
 // void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
