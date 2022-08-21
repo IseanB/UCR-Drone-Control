@@ -67,7 +67,7 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 
 /* Prints crutial information about the inputted trajectory */
-// void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments);
+void printTrajInfo(mav_trajectory_generation::Trajectory trajectory);
 
 /* Stores msgs from multi control node in last*/
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg);
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         throw;
     }
 
-    ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]) + "_control");
+    ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]));
     ros::NodeHandle nh;
     
     setup(nh, static_cast<std::string>(argv[1]));
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 
     // mutli control sub/pub
     ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>
-            (uavName + "_cmds", 0, storeCommand);
+            (uavName + "/cmds", 0, storeCommand);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
@@ -215,7 +215,7 @@ void setup(ros::NodeHandle& nodehandler, std::string droneNum){
 
     droneState = GROUND_IDLE;
     multi_info_pub = nodehandler.advertise<drone_control::dresponse>
-            (uavName + "_info", 0);
+            (uavName + "/info", 0);
     last_response.response.data = "NULL";
 
     currTime = 0;
@@ -333,11 +333,12 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             last_response.response.data = "ERROR";
         }
         else if(inputCmd == "TRANSIT_ADD"){// check logic
+            Eigen::Vector3d starting;
             if(curr_trajectories.size() == 0){
-                Eigen::Vector3d starting(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+                starting = Eigen::Vector3d(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
             } else{
                 TrajectoryGroupedInfo* last_traj = curr_trajectories.back();    
-                Eigen::Vector3d starting(last_traj->endPoint.pose.position.x, last_traj->endPoint.pose.position.y, last_traj->endPoint.pose.position.z);
+                starting = Eigen::Vector3d(last_traj->endPoint.pose.position.x, last_traj->endPoint.pose.position.y, last_traj->endPoint.pose.position.z);
             }
             mav_trajectory_generation::Trajectory outputTraj;
             Eigen::Vector3d ending(inputMsg->target.x, inputMsg->target.y, inputMsg->target.z);
@@ -355,6 +356,12 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputTraj, startingPoint, endingPoint, static_cast<float>(outputTraj.getSegmentTimes().at(0)));
             curr_trajectories.push(outputGroupedInfo);
             droneState = IN_TRANSIT;
+            ROS_INFO("TRANSIT ADD");
+            printTrajInfo((curr_trajectories.back())->trajectoryThis);
+            std::cout << "Traj Time: " << (curr_trajectories.back())->trajectoryTime << std::endl;
+            std::cout << "Traj Queue Size: " << curr_trajectories.size() << std::endl;
+            std::cout << startingPoint << std::endl;
+            std::cout << endingPoint << std::endl;
         }
         else{
             // setup transit new
@@ -381,6 +388,12 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             curr_trajectories.push(outputGroupedInfo);
             
             droneState = IN_TRANSIT;
+            ROS_INFO("TRANSIT NEW");
+            printTrajInfo((curr_trajectories.back())->trajectoryThis);
+            std::cout << "Traj Time: " << (curr_trajectories.back())->trajectoryTime << std::endl;
+            std::cout << "Traj Queue Size: " << curr_trajectories.size() << std::endl;
+            std::cout << startingPoint << std::endl;
+            std::cout << endingPoint << std::endl;
         }
     }
     else{
@@ -390,18 +403,19 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
     multi_info_pub.publish(last_response);
 }
 
-// void printTrajInfo(const mav_trajectory_generation::Segment::Vector& allSegments){
-//     mav_trajectory_generation::Trajectory trajectory;
-//     trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
-//     std::cout << "Trajectory Properties:\n" << std::endl;
-//     std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-//     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-//     std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-//     std::cout << "Sample Optimized Function Information: \n\n"; 
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
-//     printSegment(std::cout, allSegments.at(0), 0);
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
-//     printSegment(std::cout, allSegments.at(0), 1);
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
-//     printSegment(std::cout, allSegments.at(0), 2);
-// }
+void printTrajInfo(mav_trajectory_generation::Trajectory trajectory){
+    // const mav_trajectory_generation::Segment::Vector& allSegments
+    // mav_trajectory_generation::Trajectory trajectory;
+    // trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
+    std::cout << "Trajectory Properties:\n" << std::endl;
+    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+    std::cout << "Sample Optimized Function Information: \n\n"; 
+    /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
+    // printSegment(std::cout, allSegments.at(0), 0);
+    /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
+    // printSegment(std::cout, allSegments.at(0), 1);
+    /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
+    // printSegment(std::cout, allSegments.at(0), 2);
+}

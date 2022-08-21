@@ -14,32 +14,108 @@ int main(int argc, char **argv)
     ros::Rate rate(20.0);
 
     ros::Publisher drone_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone1_cmds", 0);
+            ("drone1/cmds", 0);
     ros::Subscriber drone_info_sub = nh.subscribe<drone_control::dresponse>
-            ("drone1_cmds", 0, storeInfo);
+            ("drone1/info", 0, storeInfo);
     
     drone_control::dcontrol msg;
-    bool done = false;
+    bool lift = false;
+    bool transit = false;
+    bool transit2 = false;
+    bool transit3 = false;
+    bool transit4 = false;
+    bool transit5 = false;
+    bool transit6 = false;
+    bool transit7 = false;
+    // bool transit2 = false;
     while(ros::ok()){
-        while(ros::Time::now() - last_request < ros::Duration(10.0)){
-            if(ros::Time::now() - last_request >= ros::Duration(10.0)){
-                ROS_INFO("info sent");
+        while(!lift){
+            if(ros::Time::now() - last_request >= ros::Duration(15.0)){
+                ROS_INFO("LIFT info sent");
                 msg.command.data = "LIFT";
                 msg.target.z = 1;
                 drone_cmd_pub.publish(msg);
                 last_request = ros::Time::now();
+                lift = true;
             }
             ros::spinOnce();
             rate.sleep();
         }
-        while(ros::Time::now() - last_request > ros::Duration(10.0)){
-            if(ros::Time::now() - last_request >= ros::Duration(10.0)){
-                msg.command.data = "IN_TRANSIT";
+        while(!transit7){
+            if(!transit && ros::Time::now() - last_request >= ros::Duration(15.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_ADD";
+                msg.target.x = 1;
+                msg.target.y = 1;
+                msg.target.z = 1;
+                drone_cmd_pub.publish(msg);
                 last_request = ros::Time::now();
+                transit = true;
+            }
+            else if(!transit2 && transit && ros::Time::now() - last_request >= ros::Duration(5.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_ADD";
+                msg.target.x = 2;
+                msg.target.y = 3;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit2 = true;
+            }
+            else if(!transit3 && transit2 && ros::Time::now() - last_request >= ros::Duration(5.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_ADD";
+                msg.target.x = 2;
+                msg.target.y = 31;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit3 = true;
+            }
+            else if(!transit4 && transit3 && ros::Time::now() - last_request >= ros::Duration(5.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_NEW";
+                msg.target.x = 21;
+                msg.target.y = 3;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit4 = true;
+            }
+            else if(!transit5 && transit4 && ros::Time::now() - last_request >= ros::Duration(3.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_NEW";
+                msg.target.x = 6;
+                msg.target.y = 2;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit5 = true;
+            }
+            else if(!transit6 && transit5 && ros::Time::now() - last_request >= ros::Duration(3.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_ADD";
+                msg.target.x = 2;
+                msg.target.y = 3;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit6 = true;
+            }
+            else if(!transit7 && transit6 && ros::Time::now() - last_request >= ros::Duration(3.0)){
+                ROS_INFO(" TRANSIT info sent");
+                msg.command.data = "TRANSIT_NEW";
+                msg.target.x = 2;
+                msg.target.y = 3;
+                msg.target.z = 5;
+                drone_cmd_pub.publish(msg);
+                last_request = ros::Time::now();
+                transit7 = true;
             }
             ros::spinOnce();
             rate.sleep();
         }
+        ROS_INFO("DONE");
         ros::spinOnce();
         rate.sleep();
     }
