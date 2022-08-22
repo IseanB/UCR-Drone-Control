@@ -1,6 +1,6 @@
 #include "../conversions.h"
 
-mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segment& s, double time){
+mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segment& s, float time){
     mavros_msgs::PositionTarget result;
     Eigen::VectorXd pos = s.evaluate(time, 0);
     Eigen::VectorXd vel = s.evaluate(time, 1);
@@ -8,6 +8,7 @@ mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segm
 
     result.header.stamp = ros::Time::now();
     result.header.frame_id = "map";
+    result.type_mask = 1024+2048;
 
     result.coordinate_frame = 1;
 
