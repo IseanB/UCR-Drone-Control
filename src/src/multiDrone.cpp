@@ -46,7 +46,7 @@ int main(int argc, char **argv)
             msg.command.data = "TRANSIT_ADD";
             msg.target.x = 1;
             msg.target.y = 1;
-            msg.target.z = 1;
+            msg.target.z = 2;
             drone_cmd_pub.publish(msg);
             last_request = ros::Time::now();
             transit = true;
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
             msg.command.data = "TRANSIT_ADD";
             msg.target.x = -1;
             msg.target.y = -2;
-            msg.target.z = 1;
+            msg.target.z = 2;
             drone_cmd_pub.publish(msg);
             last_request = ros::Time::now();
             transit2 = true;

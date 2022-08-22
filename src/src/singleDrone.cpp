@@ -26,34 +26,35 @@ enum PossiableState{
 };
 
 struct TrajectoryGroupedInfo{
-    mav_trajectory_generation::Trajectory trajectoryThis;
+    mav_trajectory_generation::Segment segmentThis;
     geometry_msgs::PoseStamped startPoint;
     geometry_msgs::PoseStamped endPoint;
     float trajectoryTime;
-    TrajectoryGroupedInfo(mav_trajectory_generation::Trajectory inputTraj, geometry_msgs::PoseStamped inputStart, geometry_msgs::PoseStamped inputEnd, float inputTime) : trajectoryThis(inputTraj), startPoint(inputStart), endPoint(inputEnd), trajectoryTime(inputTime) {};
+    TrajectoryGroupedInfo(mav_trajectory_generation::Segment inputSeg, geometry_msgs::PoseStamped inputStart, geometry_msgs::PoseStamped inputEnd, float inputTime) : segmentThis(inputSeg), startPoint(inputStart), endPoint(inputEnd), trajectoryTime(inputTime) {};
 };
 //Must use commands to start,end. Add point
 
 mavros_msgs::State current_state;
 geometry_msgs::PoseStamped curr_position;
 geometry_msgs::Twist curr_velocity;
-mavros_msgs::PositionTarget curr_target;// not end target, dynamic changed
+mavros_msgs::PositionTarget curr_target;// not endpoint, dynamic changed
 drone_control::dcontrol curr_message;
 
 geometry_msgs::PoseStamped hover_position;
 drone_control::dresponse last_response;
-geometry_msgs::PoseStamped default_liftoff_pos;
 mavros_msgs::SetMode offb_set_mode;
 mavros_msgs::CommandBool arm_cmd;
 
 std::string uavName;
+std::string dPrefix;
 PossiableState droneState;
 ros::Publisher multi_info_pub;
+ros::Publisher local_pos_pub;
 
 std::queue<TrajectoryGroupedInfo*> curr_trajectories;
 float currTime;
 float currTrajTime;
-const float timeStepSize = .1;
+const float timeStepSize = .05;
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
 void setup(ros::NodeHandle& nodehandler,std::string droneNum);
@@ -67,13 +68,13 @@ void updatePose(const geometry_msgs::PoseStamped::ConstPtr& inputPose);
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose);
 
-/* Prints crutial information about the inputted trajectory */
-void printTrajInfo(mav_trajectory_generation::Trajectory trajectory);
+// /* Prints crutial information about the inputted trajectory */
+// void printTrajInfo(mav_trajectory_generation::Trajectory trajectory);
 
 /* Stores msgs from multi control node in last*/
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg);
 
-void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx, int by, int bz, int ex, int ey, int ez);
+mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez);
 
 int main(int argc, char **argv)
 {
@@ -87,7 +88,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     
     setup(nh, static_cast<std::string>(argv[1]));
-    std::string dPrefix = "uav" + static_cast<std::string>(argv[1]) + "/";
     ros::Time last_request = ros::Time::now(); // used for periodic messaging
 
     // all subs/services/pubs
@@ -105,14 +105,12 @@ int main(int argc, char **argv)
     ros::ServiceClient end_flight_client = nh.serviceClient<mavros_msgs::CommandLong>
             (dPrefix +"mavros/cmd/command");        
 
-    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            (dPrefix +"mavros/setpoint_position/local", 0);
     ros::Publisher local_vel_pub = nh.advertise<geometry_msgs::Twist>
             (dPrefix +"mavros/setpoint_velocity/cmd_vel_unstamped", 0);
     ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>
             (dPrefix +"mavros/setpoint_raw/local", 20);
     ros::Publisher curr_targ_pub = nh.advertise<mavros_msgs::PositionTarget>
-            (dPrefix +"/curr_target", 0);
+            (dPrefix +"curr_target", 5);
 
     // mutli control sub/pub
     ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>
@@ -129,6 +127,9 @@ int main(int argc, char **argv)
     std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
     // state based control
+    for(unsigned i = 0; i < 20; ++i){
+        local_pos_pub.publish(hover_position);
+    }
     while(ros::ok() && droneState != SHUTTING_DOWN){
         if(droneState == GROUND_IDLE){
             if(ros::Time::now() - last_request > ros::Duration(5.0)){
@@ -140,6 +141,7 @@ int main(int argc, char **argv)
                 (ros::Time::now() - last_request > ros::Duration(3))){
                 if( set_mode_client.call(offb_set_mode) &&
                     offb_set_mode.response.mode_sent){
+                    ROS_INFO("OFFBOARD ENABLED");
                 }
                 last_request = ros::Time::now();
             } else {
@@ -147,16 +149,19 @@ int main(int argc, char **argv)
                     (ros::Time::now() - last_request > ros::Duration(3))){
                     if( arming_client.call(arm_cmd) &&
                         arm_cmd.response.success){
+                        ROS_INFO("ARMED ENABLED");
                     }
                     last_request = ros::Time::now();
                 }
             }
-            local_pos_pub.publish(default_liftoff_pos);
-            if((reachedLocation(curr_position, default_liftoff_pos, .1)) && (isStationary(curr_velocity, .05))){
-                hover_position = default_liftoff_pos;
-                curr_target.position.x = hover_position.pose.position.x;
-                curr_target.position.y = hover_position.pose.position.y;
-                curr_target.position.z = hover_position.pose.position.z;
+            if(ros::Time::now() - last_request > ros::Duration(3)){
+                std::cout << hover_position << std::endl;
+                    last_request = ros::Time::now();
+            }
+            local_pos_pub.publish(hover_position);
+            if((reachedLocation(curr_position, hover_position, .1)) && (isStationary(curr_velocity, .05))){
+                hover_position.pose = curr_position.pose;
+                curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
                 currTrajTime = 0;
                 last_response.response.data = "REACHED";
@@ -173,19 +178,17 @@ int main(int argc, char **argv)
                 hover_position = curr_position;
                 currTrajTime = 0;
                 currTime = 0;
-                curr_target.position.x = hover_position.pose.position.x;
-                curr_target.position.y = hover_position.pose.position.y;
-                curr_target.position.z = hover_position.pose.position.z;
+                curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
             }
             else{// at least one traj planned
-                TrajectoryGroupedInfo* first_trajectory = curr_trajectories.front();
+                TrajectoryGroupedInfo* first_trajectory;
                 if(currTrajTime == 0){// trajectory not loaded
+                    first_trajectory = curr_trajectories.front();
                     currTrajTime = first_trajectory->trajectoryTime;
-                    currTime = 0;
-                    curr_target = segmentToPoint((((first_trajectory->trajectoryThis).segments())[0]), currTime);
+                    currTime = timeStepSize*5; // starts calculating at .5 seconds, to prevent float point error
+                    curr_target = segmentToPoint(first_trajectory->segmentThis, currTime);
                     mav_pub.publish(curr_target);
-                    currTime = timeStepSize;
                 }
                 else{// trajectory loaded
                     if(reachedLocation(curr_position, curr_target, .2)){// if near end of target
@@ -193,17 +196,16 @@ int main(int argc, char **argv)
                         if(currTime > currTrajTime){
                             currTime = currTrajTime;
                         }
-                        curr_target = segmentToPoint((((first_trajectory->trajectoryThis).segments())[0]), currTime);
+                        curr_target = segmentToPoint(first_trajectory->segmentThis, currTime);
                         mav_pub.publish(curr_target);
                         if(currTime == currTrajTime){
                             curr_trajectories.pop();
-                            delete first_trajectory;
+                            // delete first_trajectory;
                             currTrajTime = 0;
                             currTime = 0;
                         }
                     }
                     else{
-                        curr_target = segmentToPoint((((first_trajectory->trajectoryThis).segments())[0]), currTime);
                         mav_pub.publish(curr_target);
                     }
                 }
@@ -223,48 +225,32 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
-    
     return 0;
 }
 void setup(ros::NodeHandle& nodehandler, std::string droneNum){
-    curr_position.pose.position.x = 0;
-    curr_position.pose.position.y = 0;
-    curr_position.pose.position.z = 0;
-    curr_position.pose.orientation.x = 0;
-    curr_position.pose.orientation.y = 0;
-    curr_position.pose.orientation.z = 0;
-    curr_position.pose.orientation.w = 0;
-
-    curr_velocity.linear.x = 0;
-    curr_velocity.linear.y = 0;
-    curr_velocity.linear.z = 0;
-    curr_velocity.angular.x = 0;
-    curr_velocity.angular.y = 0;
-    curr_velocity.angular.z = 0;
+    uavName = "drone" + droneNum;
+    dPrefix = "uav" + droneNum + "/";
 
     hover_position.pose.position.x = curr_position.pose.position.x;
-    hover_position.pose.position.y = curr_position.pose.position.x;
+    hover_position.pose.position.y = curr_position.pose.position.y;
     hover_position.pose.position.z = 2;
 
-    curr_target.position.x = hover_position.pose.position.x;
-    curr_target.position.y = hover_position.pose.position.y;
-    curr_target.position.z = hover_position.pose.position.z;
+    curr_target.position.x = curr_position.pose.position.x;
+    curr_target.position.y = curr_position.pose.position.y;
+    curr_target.position.z = 2;
 
     droneState = GROUND_IDLE;
     multi_info_pub = nodehandler.advertise<drone_control::dresponse>
             (uavName + "/info", 0);
     last_response.response.data = "NULL";
+    local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>
+            (dPrefix +"mavros/setpoint_position/local", 20);
 
     currTime = 0;
     currTrajTime = 0;
 
-    default_liftoff_pos.pose.position.x = curr_position.pose.position.x;
-    default_liftoff_pos.pose.position.y = curr_position.pose.position.y;
-    default_liftoff_pos.pose.position.z = 2;
-
     offb_set_mode.request.custom_mode = "OFFBOARD";
     arm_cmd.request.value = true;
-    uavName = "drone" + droneNum;
 }
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
@@ -284,7 +270,8 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
-void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx, int by, int bz, int ex, int ey, int ez){
+mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
+    ROS_INFO("GEN START");
     Eigen::Vector3d startPoint(bx,by,bz);
     Eigen::Vector3d endPoint(ex,ey,ez);
     
@@ -301,8 +288,8 @@ void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx
     vertices.push_back(end);
     
     std::vector<double> segment_times;
-    const double v_max = 2.0;
-    const double a_max = 2.0;
+    const double v_max = 1.0;
+    const double a_max = 1.0;
     segment_times = estimateSegmentTimes(vertices, v_max, a_max);
 
     const int N = 10;// needs to be at least 10 for snap, 8 for jerk
@@ -311,10 +298,13 @@ void generateTraj(mav_trajectory_generation::Trajectory& inputTrajectory, int bx
     opt.solveLinear();
 
     opt.getSegments(&segments);// fills "segments" variable with segments of the path
-    inputTrajectory.setSegments(segments);
+    ROS_INFO("GEN END");
+    return mav_trajectory_generation::Segment(segments[0]);
 }
 
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
+    ros::Time last_request = ros::Time::now();
+    ROS_INFO("STORE START");
     last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
     
@@ -326,15 +316,11 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
     else if(inputCmd == "LIFT"){
         if(droneState == GROUND_IDLE){
             //if given a point, update default_liftoff_pos
-            if(inputMsg->target.x != curr_target.position.x || inputMsg->target.y != curr_target.position.y || inputMsg->target.z != curr_target.position.z){
-                default_liftoff_pos.pose.position.x = inputMsg->target.x;  
-                default_liftoff_pos.pose.position.y = inputMsg->target.y;
-                default_liftoff_pos.pose.position.z = inputMsg->target.z;
+            hover_position.pose = curr_position.pose;
+            if(inputMsg->target.z > 0){
+                hover_position.pose.position.z = 2;
             }
-            else{
-                default_liftoff_pos.pose.position.x = curr_position.pose.position.x;
-                default_liftoff_pos.pose.position.y = curr_position.pose.position.y;
-            }
+            curr_target.position = hover_position.pose.position;
             droneState = LIFTING_OFF;
         }
         else{
@@ -348,10 +334,8 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             last_response.response.data = "ERROR";
         }
         else;
-            hover_position = curr_position;
-            curr_target.position.x = hover_position.pose.position.x;
-            curr_target.position.y = hover_position.pose.position.y;
-            curr_target.position.z = hover_position.pose.position.z;
+            hover_position.pose = curr_position.pose;
+            curr_target.position = hover_position.pose.position;
             droneState = HOVERING;
     }
     else if(inputCmd == "LAND"){
@@ -379,14 +363,12 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             Eigen::Vector3d starting;
             if(curr_trajectories.size() == 0){
                 starting = Eigen::Vector3d(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
-                ROS_INFO("ZERO SIZE STARTIN");
             } else{
                 TrajectoryGroupedInfo* last_traj = curr_trajectories.back();    
                 starting = Eigen::Vector3d(last_traj->endPoint.pose.position.x, last_traj->endPoint.pose.position.y, last_traj->endPoint.pose.position.z);
             }
-            mav_trajectory_generation::Trajectory outputTraj;
             Eigen::Vector3d ending(inputMsg->target.x, inputMsg->target.y, inputMsg->target.z);
-            generateTraj(outputTraj, starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]);
+            mav_trajectory_generation::Segment outputSegment(generateTraj(starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]));
 
             geometry_msgs::PoseStamped startingPoint;
             startingPoint.pose.position.x = starting[0]; 
@@ -397,15 +379,24 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputTraj, startingPoint, endingPoint, static_cast<float>(outputTraj.getSegmentTimes().at(0)));
+            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
             curr_trajectories.push(outputGroupedInfo);
 
             droneState = IN_TRANSIT;
-            last_response.response.data = "RECIEVED";
-            std::cout << "Recived: " << curr_trajectories.size() << std::endl;
         }
         else{
             // setup transit new
+            hover_position.pose.position.x = curr_position.pose.position.x;
+            hover_position.pose.position.y = curr_position.pose.position.y;
+            hover_position.pose.position.z = curr_position.pose.position.z;
+            //hover for a little bit, to stablize before new trajectory.
+            ros::Rate temprate(20.0); 
+            while(!isFlat(curr_position,.15) && !isStationary(curr_velocity, .25, .1)){
+                local_pos_pub.publish(hover_position);
+                ROS_INFO("STABLIZING");
+                ros::spinOnce();
+                temprate.sleep();
+            }
             while(curr_trajectories.size() != 0){
                 TrajectoryGroupedInfo* first_traj = curr_trajectories.front();
                 delete first_traj;
@@ -414,10 +405,9 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             currTrajTime = 0;
             currTime = 0;
 
-            mav_trajectory_generation::Trajectory outputTraj;
-            Eigen::Vector3d starting(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+            Eigen::Vector3d starting(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);            
             Eigen::Vector3d ending(inputMsg->target.x, inputMsg->target.y, inputMsg->target.z);
-            generateTraj(outputTraj, starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]);
+            mav_trajectory_generation::Segment outputSegment(generateTraj(starting[0], starting[1], starting[2], ending[0], ending[1], ending[2]));
 
             geometry_msgs::PoseStamped startingPoint;
             startingPoint.pose.position.x = starting[0]; 
@@ -428,7 +418,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputTraj, startingPoint, endingPoint, static_cast<float>(outputTraj.getSegmentTimes().at(0)));
+            TrajectoryGroupedInfo* outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
             curr_trajectories.push(outputGroupedInfo);
             
             droneState = IN_TRANSIT;
@@ -440,21 +430,22 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
         last_response.response.data = "ERROR";
     }
     multi_info_pub.publish(last_response);
+    std::cout << last_request.toSec() << std::endl;
 }
 
-void printTrajInfo(mav_trajectory_generation::Trajectory trajectory){
-    // const mav_trajectory_generation::Segment::Vector& allSegments
-    // mav_trajectory_generation::Trajectory trajectory;
-    // trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
-    std::cout << "Trajectory Properties:\n" << std::endl;
-    std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-    std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-    std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-    std::cout << "Sample Optimized Function Information: \n\n"; 
-    /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
-    // printSegment(std::cout, allSegments.at(0), 0);
-    /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
-    // printSegment(std::cout, allSegments.at(0), 1);
-    /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
-    // printSegment(std::cout, allSegments.at(0), 2);
-}
+// void printTrajInfo(mav_trajectory_generation::Trajectory trajectory){
+//     // const mav_trajectory_generation::Segment::Vector& allSegments
+//     // mav_trajectory_generation::Trajectory trajectory;
+//     // trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
+//     std::cout << "Trajectory Properties:\n" << std::endl;
+//     std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
+//     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
+//     std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
+//     std::cout << "Sample Optimized Function Information: \n\n"; 
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
+//     // printSegment(std::cout, allSegments.at(0), 0);
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
+//     // printSegment(std::cout, allSegments.at(0), 1);
+//     /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
+//     // printSegment(std::cout, allSegments.at(0), 2);
+// }
