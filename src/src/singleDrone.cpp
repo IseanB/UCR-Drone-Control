@@ -54,7 +54,7 @@ ros::Publisher local_pos_pub;
 std::queue<TrajectoryGroupedInfo*> curr_trajectories;
 float currTime;
 float currTrajTime;
-const float timeStepSize = .05;
+const float timeStepSize = .04;
 
 /* Assumes drone is on ground. Initializes curr_position & curr_velocity values to 0 */
 void setup(ros::NodeHandle& nodehandler,std::string droneNum);
@@ -155,8 +155,7 @@ int main(int argc, char **argv)
                 }
             }
             if(ros::Time::now() - last_request > ros::Duration(3)){
-                std::cout << hover_position << std::endl;
-                    last_request = ros::Time::now();
+                last_request = ros::Time::now();
             }
             local_pos_pub.publish(hover_position);
             if((reachedLocation(curr_position, hover_position, .1)) && (isStationary(curr_velocity, .05))){
@@ -168,7 +167,7 @@ int main(int argc, char **argv)
                 multi_info_pub.publish(last_response);
             }
         }else if(droneState == HOVERING){ // update hover_position before transiting to HOVERING
-            if(ros::Time::now() - last_request > ros::Duration(1.0)){
+            if(ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("HOVERING...");
                 last_request = ros::Time::now();
             }
@@ -186,12 +185,12 @@ int main(int argc, char **argv)
                 if(currTrajTime == 0){// trajectory not loaded
                     first_trajectory = curr_trajectories.front();
                     currTrajTime = first_trajectory->trajectoryTime;
-                    currTime = timeStepSize*5; // starts calculating at .5 seconds, to prevent float point error
+                    currTime = 0;
                     curr_target = segmentToPoint(first_trajectory->segmentThis, currTime);
                     mav_pub.publish(curr_target);
                 }
                 else{// trajectory loaded
-                    if(reachedLocation(curr_position, curr_target, .2)){// if near end of target
+                    if(reachedLocation(curr_position, curr_target, .35)){// if near end of target
                         currTime += timeStepSize;
                         if(currTime > currTrajTime){
                             currTime = currTrajTime;
@@ -200,9 +199,8 @@ int main(int argc, char **argv)
                         mav_pub.publish(curr_target);
                         if(currTime == currTrajTime){
                             curr_trajectories.pop();
-                            // delete first_trajectory;
+                            delete first_trajectory;
                             currTrajTime = 0;
-                            currTime = 0;
                         }
                     }
                     else{
@@ -271,7 +269,6 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr& inputPose){
 }
 
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
-    ROS_INFO("GEN START");
     Eigen::Vector3d startPoint(bx,by,bz);
     Eigen::Vector3d endPoint(ex,ey,ez);
     
@@ -288,8 +285,8 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     vertices.push_back(end);
     
     std::vector<double> segment_times;
-    const double v_max = 1.0;
-    const double a_max = 1.0;
+    const double v_max = 2.0;
+    const double a_max = 2.0;
     segment_times = estimateSegmentTimes(vertices, v_max, a_max);
 
     const int N = 10;// needs to be at least 10 for snap, 8 for jerk
@@ -298,13 +295,11 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     opt.solveLinear();
 
     opt.getSegments(&segments);// fills "segments" variable with segments of the path
-    ROS_INFO("GEN END");
     return mav_trajectory_generation::Segment(segments[0]);
 }
 
 void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
     ros::Time last_request = ros::Time::now();
-    ROS_INFO("STORE START");
     last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
     
@@ -363,6 +358,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             Eigen::Vector3d starting;
             if(curr_trajectories.size() == 0){
                 starting = Eigen::Vector3d(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+                ROS_INFO("ZERO START");
             } else{
                 TrajectoryGroupedInfo* last_traj = curr_trajectories.back();    
                 starting = Eigen::Vector3d(last_traj->endPoint.pose.position.x, last_traj->endPoint.pose.position.y, last_traj->endPoint.pose.position.z);
@@ -391,7 +387,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
             hover_position.pose.position.z = curr_position.pose.position.z;
             //hover for a little bit, to stablize before new trajectory.
             ros::Rate temprate(20.0); 
-            while(!isFlat(curr_position,.15) && !isStationary(curr_velocity, .25, .1)){
+            while(!isFlat(curr_position,.05) && !isStationary(curr_velocity, .05, .05)){
                 local_pos_pub.publish(hover_position);
                 ROS_INFO("STABLIZING");
                 ros::spinOnce();
@@ -430,7 +426,6 @@ void storeCommand(const drone_control::dcontrol::ConstPtr& inputMsg){
         last_response.response.data = "ERROR";
     }
     multi_info_pub.publish(last_response);
-    std::cout << last_request.toSec() << std::endl;
 }
 
 // void printTrajInfo(mav_trajectory_generation::Trajectory trajectory){

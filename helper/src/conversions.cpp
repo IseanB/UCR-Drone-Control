@@ -2,13 +2,13 @@
 
 mavros_msgs::PositionTarget segmentToPoint(const mav_trajectory_generation::Segment& s, float time){
     mavros_msgs::PositionTarget result;
+    time = abs(time);
     Eigen::VectorXd pos = s.evaluate(time, 0);
     Eigen::VectorXd vel = s.evaluate(time, 1);
     Eigen::VectorXd acc = s.evaluate(time, 2);
 
     result.header.stamp = ros::Time::now();
     result.header.frame_id = "map";
-    result.type_mask = 1024+2048;
 
     result.coordinate_frame = 1;
 
