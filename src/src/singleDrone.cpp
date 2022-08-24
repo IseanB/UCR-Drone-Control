@@ -71,9 +71,6 @@ void updatePose(const nav_msgs::Odometry::ConstPtr &inputPose);
 /* Updates curr_velocity values, linear and angular, with inputted pose */
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose);
 
-// /* Prints crutial information about the inputted trajectory */
-// void printTrajInfo(mav_trajectory_generation::Trajectory trajectory);
-
 /* Stores msgs from multi control node in last*/
 void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg);
 
@@ -226,6 +223,8 @@ int main(int argc, char **argv)
                             curr_trajectories.pop();
                             delete first_trajectory;
                             currTrajTime = 0;
+                            last_response.response.data = "REACHED";
+                            multi_info_pub.publish(last_response);
                         }
                     }
                     else
@@ -338,7 +337,6 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
     last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
 
-    // handles input command
     std::string inputCmd = inputMsg->command.data;
     if (inputCmd == "SHUTOFF")
     {
@@ -383,9 +381,30 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
             ROS_INFO("LAND Error: Drone is already landing/landed.");
             last_response.response.data = "ERROR";
         }
-        else
-            ;
-        droneState = LANDING;
+        else{
+            droneState = LANDING;
+        }
+    }
+    else if(inputCmd == "CHECK")
+    {
+        if(droneState == GROUND_IDLE){
+            return "GROUND_IDLE";
+        }
+        else if(droneState == LIFTING_OFF){
+            return "LIFTING_OFF";
+        }
+        else if(droneState == HOVERING){
+            return "HOVERING";
+        }
+        else if(droneState == IN_TRANSIT){
+            return "IN_TRANSIT";
+        }
+        else if(droneState == LANDING){
+            return "LANDING";
+        }
+        else{
+            return "ERROR";
+        }
     }
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW")
     {
@@ -404,8 +423,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
             ROS_INFO("TRANSIT Error: Wait for landing completion.");
             last_response.response.data = "ERROR";
         }
-        else if (inputCmd == "TRANSIT_ADD")
-        {
+        else if (inputCmd == "TRANSIT_ADD"){
             Eigen::Vector3d starting;
             if (curr_trajectories.size() == 0)
             {
@@ -434,9 +452,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
 
             droneState = IN_TRANSIT;
         }
-        else
-        {
-            // setup transit new
+        else{
             hover_position.pose.position.x = curr_position.pose.position.x;
             hover_position.pose.position.y = curr_position.pose.position.y;
             hover_position.pose.position.z = curr_position.pose.position.z;
@@ -485,20 +501,3 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
     }
     multi_info_pub.publish(last_response);
 }
-
-// void printTrajInfo(mav_trajectory_generation::Trajectory trajectory){
-//     // const mav_trajectory_generation::Segment::Vector& allSegments
-//     // mav_trajectory_generation::Trajectory trajectory;
-//     // trajectory.setSegments(allSegments);// dont use addSegments, uncessary calculations
-//     std::cout << "Trajectory Properties:\n" << std::endl;
-//     std::cout << "Number of Dimensions :  "<<trajectory.D() << std::endl;
-//     std::cout << "Polynomial Order of Optimizination Function :  "<<trajectory.N() << std::endl;
-//     std::cout << "Number of Segments :  " << trajectory.K() << std::endl << std::endl;
-//     std::cout << "Sample Optimized Function Information: \n\n";
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in position*/
-//     // printSegment(std::cout, allSegments.at(0), 0);
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in veloity*/
-//     // printSegment(std::cout, allSegments.at(0), 1);
-//     /*Line below prints optimized functions;x,y,z axis; for first segement in acceleration*/
-//     // printSegment(std::cout, allSegments.at(0), 2);
-// }
