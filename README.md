@@ -56,7 +56,7 @@ This repository combines a trajectory planning, communication protocol, and robo
 ---
 ## Documentation
 
-The ***simple_movements*** package is structured into three main folders: the src, helper, and the test folder. Below are quick summaries of each folder's purpose.
+The ***drone_control*** package is structured into three main folders: the src, helper, and the test folder. Below are quick summaries of each folder's purpose.
 ### src
 The src folder stores all the control code used to create the offboard node. Currently, the file offboard.cpp optimizes the path followed, controls the state of the drone, and sends control signals to the drone. 
 
@@ -67,20 +67,26 @@ Each loop contains unique control software used during that state of the drone. 
 The helper folder stores any mathematical computations or data conversions needed. This allows for testing and easy extensibility for future computations/conversions. Some of the functions written are the isStationary(...), isFlat(...), reachedLocation(...), and segmentToPoint(...).
 ### test
 The test folder contains tests for the helper functions in the helper folder. Some of the functions tested are mathematical computations, such as isStationary(...), while others are data conversions like in the segmentToPoint(...) function. GoogleTest is the test framework used.
-
+### launch
+The launch folder contains the setup of the Gazebo simulation and MAVROS nodes. The fourDrones and oneDrone.launch are example launch files used for testing the single/multi control structure.
+### msg
+The msg folder contains the custom messages that are communicated between the individual drone nodes and the multi control node.
 ---
 ## Usage
 
 ### Launching World in Gazebo
 Tip: Before launch run ```echo "export SVGA_VGPU10=0" >> ~/.bashrc``` and ```source ~/.bashrc```, to prevent VMWare REST Error below. [^8] 
 
-```roslaunch px4 mavros_posix_sitl.launch```
+```roslaunch drone_control fourDronesNodes.launch```
 
-### Running offboard_node
-```rosrun simple_movements offboard_node```
+### Running drone# node(single drone control)
+```rosrun drone_control single_control #(0-3)```
+
+### Running multi_control node(multi drone control)
+```rosrun drone_control single_control```
 
 ### Running Google Tests(Optional)
-```rosrun simple_movements simple_mov_test```
+```rosrun drone_control simple_mov_test```
 
 ---
 ## Tools
