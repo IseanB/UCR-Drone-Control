@@ -16,11 +16,11 @@ int main(int argc, char **argv)
     ros::Publisher drone1_cmd_pub = nh.advertise<drone_control::dcontrol>
             ("drone0/cmds", 5);
     ros::Publisher drone2_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone12/cmds", 5);
+            ("drone1/cmds", 5);
     ros::Publisher drone3_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone22/cmds", 5);
+            ("drone2/cmds", 5);
     ros::Publisher drone4_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone32/cmds", 5);
+            ("drone3/cmds", 5);
     
     drone_control::dcontrol msg;
     bool lift = false;
