@@ -12,8 +12,6 @@
 #include <mavros_msgs/CommandLong.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <nav_msgs/Odometry.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <std_msgs/String.h>
 #include "drone_control/dcontrol.h"
 #include "drone_control/dresponse.h"
 #include <queue>
@@ -34,7 +32,7 @@ struct TrajectoryGroupedInfo
     geometry_msgs::PoseStamped startPoint;
     geometry_msgs::PoseStamped endPoint;
     float trajectoryTime;
-    TrajectoryGroupedInfo(mav_trajectory_generation::Segment inputSeg, geometry_msgs::PoseStamped inputStart, geometry_msgs::PoseStamped inputEnd, float inputTime) : segmentThis(inputSeg), startPoint(inputStart), endPoint(inputEnd), trajectoryTime(inputTime){};
+    TrajectoryGroupedInfo(mav_trajectory_generation::Segment inputSeg, geometry_msgs::PoseStamped inputStart, geometry_msgs::PoseStamped inputEnd, float inputTime) : segmentThis(inputSeg), startPoint(inputStart), endPoint(inputEnd), trajectoryTime(abs(inputTime)){};
 };
 
 mavros_msgs::State current_state;
@@ -93,20 +91,15 @@ int main(int argc, char **argv)
 
     // all subs/services/pubs
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(dPrefix + "mavros/state", 0, state_cb);
-    ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry> // global-
-                              (dPrefix + "mavros/global_position/local", 0, updatePose);
-    ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped> // global
-                              (dPrefix + "mavros/global_position/gp_vel", 0, updateVel);
+    ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry>(dPrefix + "mavros/global_position/local", 0, updatePose);
+    ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(dPrefix + "mavros/global_position/gp_vel", 0, updateVel);
 
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>(dPrefix + "mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>(dPrefix + "mavros/set_mode");
     ros::ServiceClient end_flight_client = nh.serviceClient<mavros_msgs::CommandLong>(dPrefix + "mavros/cmd/command");
 
     ros::Publisher local_vel_pub = nh.advertise<geometry_msgs::Twist>(dPrefix + "mavros/setpoint_velocity/cmd_vel_unstamped", 0);
-    ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget> // global-
-                             (dPrefix + "mavros/setpoint_raw/local", 20);
-    ros::Publisher curr_targ_pub = nh.advertise<mavros_msgs::PositionTarget>(dPrefix + "curr_target", 5);
-    ros::Publisher curr_pos = nh.advertise<geometry_msgs::PoseWithCovariance>(dPrefix + "curr_pos", 5);
+    ros::Publisher mav_pub = nh.advertise<mavros_msgs::PositionTarget>(dPrefix + "mavros/setpoint_raw/local", 0);
 
     // mutli control sub/pub
     ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>(uavName + "/cmds", 0, storeCommand);
@@ -123,12 +116,10 @@ int main(int argc, char **argv)
     std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
     // state based control
-    for (unsigned i = 0; i < 20; ++i)
-    {
+    for (unsigned i = 0; i < 20; ++i){
         local_pos_pub.publish(hover_position);
     }
-    while (ros::ok() && droneState != SHUTTING_DOWN)
-    {
+    while(ros::ok() && droneState != SHUTTING_DOWN){
         if (droneState == GROUND_IDLE)
         {
             if (ros::Time::now() - last_request > ros::Duration(5.0))
@@ -248,15 +239,12 @@ int main(int argc, char **argv)
                 last_request = ros::Time::now();
             }
         }
-        curr_targ_pub.publish(curr_target);
-        curr_pos.publish(curr_position);
         ros::spinOnce();
         rate.sleep();
     }
     return 0;
 }
-void setup(ros::NodeHandle &nodehandler, std::string droneNum)
-{
+void setup(ros::NodeHandle &nodehandler, std::string droneNum){
     uavName = "drone" + droneNum;
     dPrefix = "uav" + droneNum + "/";
 
@@ -272,6 +260,7 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum)
     multi_info_pub = nodehandler.advertise<drone_control::dresponse>(uavName + "/info", 0);
     last_response.response.data = "NULL";
     local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>(dPrefix + "mavros/setpoint_position/local", 20);
+    
 
     currTime = 0;
     currTrajTime = 0;
@@ -280,18 +269,15 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum)
     arm_cmd.request.value = true;
 }
 
-void state_cb(const mavros_msgs::State::ConstPtr &msg)
-{
+void state_cb(const mavros_msgs::State::ConstPtr &msg){
     current_state = *msg;
 }
 
-void updatePose(const nav_msgs::Odometry::ConstPtr &inputPose)
-{
+void updatePose(const nav_msgs::Odometry::ConstPtr &inputPose){
     curr_position = inputPose->pose;
 }
 
-void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose)
-{
+void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose){
     curr_velocity.linear.x = inputPose->twist.linear.x;
     curr_velocity.linear.y = inputPose->twist.linear.y;
     curr_velocity.linear.z = inputPose->twist.linear.z;
@@ -300,8 +286,7 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose)
     curr_velocity.angular.z = inputPose->twist.angular.z;
 }
 
-mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez)
-{
+mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
     Eigen::Vector3d startPoint(bx, by, bz);
     Eigen::Vector3d endPoint(ex, ey, ez);
 
@@ -331,8 +316,7 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     return mav_trajectory_generation::Segment(segments[0]);
 }
 
-void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
-{
+void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
     ros::Time last_request = ros::Time::now();
     last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
@@ -368,11 +352,11 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
             ROS_INFO("STOP Error: Drone is already stationary.");
             last_response.response.data = "ERROR";
         }
-        else
-            ;
-        hover_position.pose = curr_position.pose;
-        curr_target.position = hover_position.pose.position;
-        droneState = HOVERING;
+        else{
+            hover_position.pose = curr_position.pose;
+            curr_target.position = hover_position.pose.position;
+            droneState = HOVERING;
+        }
     }
     else if (inputCmd == "LAND")
     {
@@ -388,22 +372,22 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
     else if(inputCmd == "CHECK")
     {
         if(droneState == GROUND_IDLE){
-            return "GROUND_IDLE";
+            last_response.response.data = "GROUND_IDLE";
         }
         else if(droneState == LIFTING_OFF){
-            return "LIFTING_OFF";
+            last_response.response.data = "LIFTING_OFF";
         }
         else if(droneState == HOVERING){
-            return "HOVERING";
+            last_response.response.data = "HOVERING";
         }
         else if(droneState == IN_TRANSIT){
-            return "IN_TRANSIT";
+            last_response.response.data = "IN_TRANSIT";
         }
         else if(droneState == LANDING){
-            return "LANDING";
+            last_response.response.data = "LANDING";
         }
         else{
-            return "ERROR";
+            last_response.response.data = "ERROR";
         }
     }
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW")
@@ -458,7 +442,7 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg)
             hover_position.pose.position.z = curr_position.pose.position.z;
             // hover for a little bit, to stablize before new trajectory.
             ros::Rate temprate(20.0);
-            while (!isFlat(curr_position.pose, .05) && !isStationary(curr_velocity, .05, .05))
+            while (!isFlat(curr_position.pose, .02) && !isStationary(curr_velocity, .01, .01))
             {
                 local_pos_pub.publish(hover_position);
                 ROS_INFO("STABLIZING");
