@@ -71,13 +71,18 @@ The test folder contains tests for the helper functions in the helper folder. So
 The launch folder contains the setup of the Gazebo simulation and MAVROS nodes. The fourDrones and oneDrone.launch are example launch files used for testing the single/multi control structure.
 ### msg
 The msg folder contains the custom messages that are communicated between the individual drone nodes and the multi control node.
+
 ---
 ## Usage
 
 ### Launching World in Gazebo
 Tip: Before launch run ```echo "export SVGA_VGPU10=0" >> ~/.bashrc``` and ```source ~/.bashrc```, to prevent VMWare REST Error below. [^8] 
 
+### Setuping World, MAVROS nodes, and four drones
 ```roslaunch drone_control fourDronesNodes.launch```
+
+### Setuping World, MAVROS nodes, and a single drones
+```roslaunch drone_control oneDrone.launch```
 
 ### Running drone# node(single drone control)
 ```rosrun drone_control single_control #(0-3)```
