@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(simple_movements)
+project(drone_control)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -8,12 +8,13 @@ project(simple_movements)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
   std_msgs
   geometry_msgs
+  roscpp
+  rospy
   mavros_msgs
   mav_trajectory_generation
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,11 +51,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  dcontrol.msg
+  dresponse.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -71,10 +72,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs 
+  geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -113,6 +115,7 @@ rospy
 std_msgs 
 geometry_msgs 
 mav_trajectory_generation
+message_runtime
 #  DEPENDS system_lib
 )
 
@@ -123,7 +126,7 @@ mav_trajectory_generation
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  # include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -141,10 +144,21 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/simple_movements_node.cpp)
-add_executable(offboard_node 
+
+add_executable(multi_control
   helper/src/conversions.cpp
   helper/src/computations.cpp
-  src/offboard.cpp)
+  src/src/multiDrone.cpp)
+
+add_executable(single_control 
+  helper/src/conversions.cpp
+  helper/src/computations.cpp
+  src/src/singleDrone.cpp)
+
+# add_executable(singleDroneControl_node 
+#   helper/src/conversions.cpp
+#   helper/src/computations.cpp
+#   src/src/single_control.cpp)
   
   ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -154,12 +168,24 @@ add_executable(offboard_node
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(multi_control drone_control_generate_messages)
+add_dependencies(single_control drone_control_generate_messages)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(offboard_node
+
+target_link_libraries(multi_control
   ${catkin_LIBRARIES}
 )
+
+target_link_libraries(single_control
+  ${catkin_LIBRARIES}
+)
+
+
+# target_link_libraries(singleDroneControl_node
+#   ${catkin_LIBRARIES}
+# )
+
 
 #############
 ## Install ##
@@ -208,9 +234,9 @@ target_link_libraries(offboard_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-catkin_add_executable_with_gtest(simple_mov_test 
-  helper/src/computations.cpp
-  test/test_helperFunc.cpp)
+# catkin_add_executable_with_gtest(simple_mov_test 
+#   helper/src/computations.cpp
+#   test/test_helperFunc.cpp)
 # if(TARGET simple_mov_test)
 #   target_link_libraries(simple_mov_test ${PROJECT_NAME})
 # endif()
