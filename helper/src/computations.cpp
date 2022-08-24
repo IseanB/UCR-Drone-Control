@@ -12,10 +12,6 @@ bool isStationary(const geometry_msgs::Twist& this_vel, float maxSpeed, float ma
          );
 }
 
-bool isFlat(const geometry_msgs::PoseStamped& this_pos, float maxTilt){
-    return (abs(this_pos.pose.orientation.x) <= abs(maxTilt) && abs(this_pos.pose.orientation.y) <= abs(maxTilt));
-}
-
 bool isFlat(const geometry_msgs::Pose& this_pos, float maxTilt){
     return (abs(this_pos.orientation.x) <= abs(maxTilt) && abs(this_pos.orientation.y) <= abs(maxTilt));
 }
