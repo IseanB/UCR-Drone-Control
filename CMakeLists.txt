@@ -154,11 +154,6 @@ add_executable(single_control
   helper/src/conversions.cpp
   helper/src/computations.cpp
   src/src/singleDrone.cpp)
-
-# add_executable(singleDroneControl_node 
-#   helper/src/conversions.cpp
-#   helper/src/computations.cpp
-#   src/src/single_control.cpp)
   
   ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
