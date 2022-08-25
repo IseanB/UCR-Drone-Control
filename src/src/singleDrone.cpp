@@ -92,7 +92,7 @@ int main(int argc, char **argv)
     // all subs/services/pubs
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(dPrefix + "mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry>(dPrefix + "mavros/global_position/local", 0, updatePose);
-    ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(dPrefix + "mavros/global_position/gp_vel", 0, updateVel);
+    ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(dPrefix + "mavros/global_position/raw/gps_vel", 0, updateVel);
 
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>(dPrefix + "mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>(dPrefix + "mavros/set_mode");
@@ -278,12 +278,7 @@ void updatePose(const nav_msgs::Odometry::ConstPtr &inputPose){
 }
 
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose){
-    curr_velocity.linear.x = inputPose->twist.linear.x;
-    curr_velocity.linear.y = inputPose->twist.linear.y;
-    curr_velocity.linear.z = inputPose->twist.linear.z;
-    curr_velocity.angular.x = inputPose->twist.angular.x;
-    curr_velocity.angular.y = inputPose->twist.angular.y;
-    curr_velocity.angular.z = inputPose->twist.angular.z;
+    curr_velocity = inputPose->twist;
 }
 
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
