@@ -127,7 +127,7 @@ int main(int argc, char **argv){
         }
         else if (droneState == LIFTING_OFF){
             if (current_state.mode != "OFFBOARD" &&
-                (ros::Time::now() - last_request > ros::Duration(3)))
+                (ros::Time::now() - last_request > ros::Duration(1.5)))
             {
                 if (set_mode_client.call(offb_set_mode) &&
                     offb_set_mode.response.mode_sent){
@@ -137,7 +137,7 @@ int main(int argc, char **argv){
             }
             else{
                 if (!current_state.armed &&
-                    (ros::Time::now() - last_request > ros::Duration(3))){
+                    (ros::Time::now() - last_request > ros::Duration(1.5))){
                     if (arming_client.call(arm_cmd) &&
                         arm_cmd.response.success){
                         ROS_INFO("ARMED ENABLED");
@@ -146,13 +146,16 @@ int main(int argc, char **argv){
                 }
             }
             local_pos_pub.publish(hover_position);
-            if ((reachedLocation(curr_position.pose, hover_position, .1)) && (isStationary(curr_velocity, .05))){
-                hover_position.pose = curr_position.pose;
+            if ((reachedLocation(curr_position.pose, hover_position, .2)) && (isStationary(curr_velocity, .07))){
                 curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
                 currTrajTime = 0;
                 last_response.response.data = "REACHED";
                 multi_info_pub.publish(last_response);
+            }
+            if (ros::Time::now() - last_request > ros::Duration(10.0)){
+                ROS_INFO("Lifting Offf...");
+                last_request = ros::Time::now();
             }
         }
         else if (droneState == HOVERING){ // update hover_position before transiting to HOVERING
@@ -182,10 +185,10 @@ int main(int argc, char **argv){
                 else{ // trajectory loaded
                     if (reachedLocation(curr_position.pose, curr_target, .35)){ // if near end of curr_target
                         currTime += timeStepSize;
-                        if (currTime > currTrajTime){ // Make sures no invalid time is inputted
-                            currTime = currTrajTime - .001;
+                        if (currTime + .1 > currTrajTime){ // Make sures no invalid time is inputted
+                            currTime = currTrajTime;
                         }
-                        curr_target = segmentToPoint(first_trajectory->segmentThis, currTime);
+                        curr_target = segmentToPoint(first_trajectory->segmentThis, currTime-.001);
                         mav_pub.publish(curr_target);
                         if (currTime == currTrajTime){// at end of trajectory
                             curr_trajectories.pop();
@@ -206,13 +209,18 @@ int main(int argc, char **argv){
             }
         }
         else if (droneState == LANDING){
-            if(curr_position.pose.position.z > .15){// 
-                updatingVel.linear.x = 0;
-                updatingVel.linear.y = 0;
-                updatingVel.linear.z = (-.5) * abs(curr_position.pose.position.z-.1);
+            if(curr_position.pose.position.z > curr_target.position.z * .8){//parabolic curve 1
+                updatingVel.linear.z = (-.3) * pow(abs(curr_position.pose.position.z-curr_target.position.z) + .01, 2);
+            }
+            else if(curr_position.pose.position.z > curr_target.position.z * .4){//parabolic curve 2(linear)
+                updatingVel.linear.z = (-.3);
                 local_vel_pub.publish(updatingVel);
-            } 
-            if(isStationary(curr_velocity, .2) && ( curr_position.pose.position.z <= .15)){
+            }
+            else{//parabolic curve 3
+                updatingVel.linear.z = (-.3) * pow(curr_position.pose.position.z-.025, 2);
+            }
+
+            if(isStationary(curr_velocity, .05) && ( curr_position.pose.position.z <= .05)){
                 droneState = SHUTTING_DOWN;
             }
             if (ros::Time::now() - last_request > ros::Duration(2.0)){
@@ -341,6 +349,11 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             last_response.response.data = "ERROR";
         }
         else{
+            // updates curr_target for parabloic blend
+            curr_target.position.z = curr_position.pose.position.z;
+            // makes sure no movement on xy plane
+            updatingVel.linear.x = 0;
+            updatingVel.linear.y = 0;
             droneState = LANDING;
         }
     }
@@ -380,9 +393,9 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
         else if (inputCmd == "TRANSIT_ADD"){
             Eigen::Vector3d starting;
             /*if there are no trajectories being followed, the starting point will start at the curr_position
-              if there are trajectories being followered, the starting point will start the end of the last trajectory  
-            */if (curr_trajectories.size() == 0){
-                starting = Eigen::Vector3d(curr_position.pose.position.x, curr_position.pose.position.y, curr_position.pose.position.z);
+              if there are trajectories being followered, the starting point will start the end of the last trajectory */
+            if (droneState == HOVERING){
+                starting = Eigen::Vector3d(hover_position.pose.position.x, hover_position.pose.position.y, hover_position.pose.position.z);
             }
             else{
                 TrajectoryGroupedInfo *last_traj = curr_trajectories.back();
@@ -401,7 +414,9 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.z = ending[2];
 
             TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
+            std::cout << curr_trajectories.size();
             curr_trajectories.push(outputGroupedInfo);
+            std::cout << curr_trajectories.size();
 
             droneState = IN_TRANSIT;
         }

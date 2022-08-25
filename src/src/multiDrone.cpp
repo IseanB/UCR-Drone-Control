@@ -70,7 +70,7 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit2 = true;
         }
-        else if(!transit3 && transit2 && ros::Time::now() - last_request >= ros::Duration(5.0)){
+        else if(!transit3 && transit2 && ros::Time::now() - last_request >= ros::Duration(15.0)){
             ROS_INFO(" TRANSIT NEW");
             msg.command.data = "TRANSIT_NEW";
             msg.target.x = 0;
