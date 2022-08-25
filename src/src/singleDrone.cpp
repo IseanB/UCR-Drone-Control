@@ -40,6 +40,7 @@ geometry_msgs::PoseWithCovariance curr_position;
 geometry_msgs::Twist curr_velocity;
 mavros_msgs::PositionTarget curr_target; // not endpoint, dynamic changed
 drone_control::dcontrol curr_message;
+geometry_msgs::Twist updatingVel;
 
 geometry_msgs::PoseStamped hover_position;
 drone_control::dresponse last_response;
@@ -233,6 +234,15 @@ int main(int argc, char **argv)
         }
         else if (droneState == LANDING)
         {
+            if(curr_position.pose.position.z > .15){
+                updatingVel.linear.x = 0;
+                updatingVel.linear.y = 0;
+                updatingVel.linear.z = (-.5) * abs(curr_position.pose.position.z-.1);
+                local_vel_pub.publish(updatingVel);
+            } 
+            if(isStationary(curr_velocity, .2) && ( curr_position.pose.position.z <= .2)){
+                droneState = SHUTTING_DOWN;
+            }
             if (ros::Time::now() - last_request > ros::Duration(2.0))
             {
                 ROS_INFO("Landing...");
@@ -242,6 +252,16 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
+
+    mavros_msgs::CommandLong endflight_call;
+    endflight_call.request.broadcast = false;
+    endflight_call.request.command = 400;
+    endflight_call.request.param2 = 21196.0;
+    if( end_flight_client.call(endflight_call) &&
+        end_flight_client.waitForExistence()){
+        ROS_INFO("Vehicle is Shutting Down");
+    }
+
     return 0;
 }
 void setup(ros::NodeHandle &nodehandler, std::string droneNum){
@@ -440,10 +460,11 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             while (!isFlat(curr_position.pose, .02) && !isStationary(curr_velocity, .01, .01))
             {
                 local_pos_pub.publish(hover_position);
-                ROS_INFO("STABLIZING");
+                ROS_INFO("STABLIZING...");
                 ros::spinOnce();
                 temprate.sleep();
             }
+            ROS_INFO("STABLIZED!");
             while (curr_trajectories.size() != 0)
             {
                 TrajectoryGroupedInfo *first_traj = curr_trajectories.front();
