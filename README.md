@@ -1,6 +1,6 @@
 # UCR Drone Control
 
-This repository combines a trajectory planning, communication protocol, and robotics libraries to autonomously control multiple drones. Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drones to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drones.
+This repository combines a trajectory planning, communication protocol, and robotics libraries for a simple interface to control multiple drones. Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop the drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drones to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drones.
 
 ---
 
@@ -70,7 +70,7 @@ Once the installation process is complete, these terminal commands properly run 
 
 ### Commands
 
-#### Setuping World, MAVROS nodes, and four drones
+#### Setup World, MAVROS nodes, and four drones
 ```roslaunch drone_control fourDronesNodes.launch```
 
 #### Running drone# node(single drone control)
@@ -85,14 +85,22 @@ Once the installation process is complete, these terminal commands properly run 
 ---
 
 ## Technical Breakdown
-### Single Drone Control Structure
-The file singleDrone.cpp stores the code for the ROS node that controls a single drone. Mutliple instances of this node allows for the independent control of multiple drones, with the aid of the multi-drone control node. There are two main sections of code in this ROS node, the state based control and the *interpretCommand*.
 
-For the state based control, it must be known that a variable inside the node stores the state the drone is in. Below shows the different states the drone can be in, and depending on which one its in determines the drone's behavior. For example if node has the drone in the *HOVERING* state, then the drone would simply stay at, or very close, to a single point in a 3D space.
+This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node.
+
+### Multi Drone Control Structure
+The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, an example of controlling four nodes is given. The file uses estimates for the time needed to complete a certain command. Responses from each drone can also be used. Responses will be talked about later in the technical breakdown.
+
+### Single Drone Control Structure
+The singleDrone.cpp file stores the code for the ROS node that controls a single drone. Multiple instances of this node allow for the independent control of multiple drones, with the aid of the multi-drone control node. Below is a visaulization of the multi_control_node and single_drone_control(drone0) node interactions through certain topics. 
+
+![image](https://user-images.githubusercontent.com/44033533/186790602-2435b02e-b44d-4144-91de-e4c7d0182118.png)
+
+The single drone control node is centered around a state-based control approach. For the state-based control, it must be known that a variable inside the node stores the state the drone is in. Below shows the different states the drone can be in, and depending which one the drone is in determines the drone's behavior. For example, if the node has the drone in the *HOVERING* state, then the drone would simply stay at, or very close, to a single point in the 3D space. The *GROUND_IDLE* state is the state the drone is first initialized to on the ground. All other states should be self-explanatory. 
 
 ![image](https://user-images.githubusercontent.com/44033533/186802424-05f81d06-6408-4dae-ab81-4823004b6537.png)
 
-As for transitioning the drone through all of the possiable states, a command needs to be sent to the node using the *dcontrol.msg* format, file found in the msg folder. A command inputted into the "command" section and a point, if necessary, into the target section. Not all commands need a target point inputted, such as *LIFT* or *STOP*. Below is a table of all of the possiable commands that could be sent and wheter they need a point or not. List of commands can also be found in the msg file.
+As for transitioning the drone through the possible states, a command needs to be sent to the node using the *dcontrol.msg* format, which will then be interpreted by the *interpretCommand* function. A command, string, is inputted into the "command" section, and a point, three floats, into the target section. Not all commands need a target point inputted, such as *LIFT* and *STOP*. Below is a table of all of the possible commands that could be sent and whether they need a point to be sent alongside it. A list of commands can also be found in the msg file. 
 
 ### Commands
 
@@ -107,18 +115,30 @@ TRANSIT_ADD | Required
 TRANSIT_NEW | Required
 
 ##### Explanation
-- *SHUTOFF* command immediate disables the drone. **Useful for emergency shutoffs.** Note that drones can be shutoff high in the sky, causing them to fall quite a bit.
-- *STOP* command stops a drone dead in its track by deleting all of its trajectories and putting it in the *HOVERING* state. **Useful for stopping a drone, but not disabling it**
-- *LIFT* command lifts a drone off the ground into the air. If a point is given with a z > 0, then it will takeoff to that location. If no point is given it will take off 2m above its current position. 
-- *LAND* command gently lands a drone onto the ground. Used generally at the end of flight or when a drone needs to be taken out of the sky safely.
+- *SHUTOFF* command immediately disables the drone. **Useful for emergency shutoffs.** Note that drones can be shut off high in the sky, causing them to fall quite a bit.
+- *STOP* command stops a drone dead in its track by deleting all of its trajectories and putting it in the *HOVERING* state. **Useful for stopping a drone, but not disabling it.**
+- *LIFT* command lifts a drone off the ground into the air. If a point is given with a z > 0, then it will take off to that location. If no point is given it will take off 2m above its current position. A point is not needed to liftoff properly.
+- *LAND* command gently lands a drone onto the ground. Used generally at the end of a flight or when a drone needs to be taken out of the sky safely.
 - *CHECK* command will return the state the drone is currently in. It will use a *dresponse.msg* format, which will be talked about below.
 - *TRANSIT_ADD* command will a trajectory for the drone to follow. A point is needed. If the drone is HOVERING and this command is called, it will calculate an optimal path from its current location to the inputted location using the [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library. If the drone is currently in a trajectory, it will save that trajectory and go there once it is done with the current trajectory. Multiple trajectories can be added during or after a trajectory is complete.
-- *TRANSIT_NEW* command is the same as the *TRANSIT_ADD* command, but with one difference. If its called while a drone is following a trajectory, it will immediately stop following that trajectory, stablize by trying to hover in place, delete all stored trajectories, and go to the new indented location. A point is needed. This is useful for following a new set of trajectories or moving toward a newly planned desitination.
+- *TRANSIT_NEW* command is the same as the *TRANSIT_ADD* command, but with one difference. If it is called while a drone is following a trajectory, it will immediately stop following that trajectory, stabilize by hovering in place, delete all stored trajectories, and go to the new indented location. A point is needed. This is useful for following a new set of trajectories or moving toward a newly planned course.
 
+### Command Behaviors
 
-Some states can automatically transition to another state. Such as, if the drone is in the *LIFTING_OFF* state and it has reached its intended point of takeoff, it will automatically go to the *HOVERING* state. Below are the automatic state transitions that happen when once a drone is put into a state in the *From* column.
+Although the commands have certain outcomes, as explained above, they only work in certain situations. For example, a *TRANSIT_NEW* or *TRANSIT_ADD* command will not execute if the drone has not lifted off. For each command, there are prerequisite states that the drone must be in. Below are commands with the states that will work. Note the *SHUTTING_DOWN* state is not listed since the drone will turn off once in that state.
 
-##### Automatic State Transitions
+##### Commands and Prerequisite States
+- SHUTOFF: GROUND_IDLE, LIFTING_OFF, HOVERING, IN_TRANSIT, LANDING
+- STOP: LIFTING_OFF, HOVERING, IN_TRANSIT, LANDING
+- LIFT: GROUND_IDLE
+- LAND: LIFTING_OFF, HOVERING, IN_TRANSIT
+- CHECK: GROUND_IDLE, LIFTING_OFF, HOVERING, IN_TRANSIT, LANDING
+- TRANSIT_ADD: HOVERING, IN_TRANSIT
+- TRANSIT_NEW: HOVERING, IN_TRANSIT
+
+### Automatic State Transitions
+
+Some states can automatically transition to another state. Such as, if the drone is in the *LIFTING_OFF* state and it has reached its intended point of takeoff, it will automatically go to the *HOVERING* state. Below are the automatic state transitions that happen once a drone is put into a state in the *From* column.
 
 From | To
 ---- | --
@@ -126,10 +146,19 @@ LIFTING_OFF | HOVERING
 IN_TRANSIT* | HOVERING
 LANDING | SHUTTING_DOWN
 
-\*The *IN_TRANSIT* state will only go into the *HOVERING* state if there are no trajectories planned/stored after the current one.
+\*The *IN_TRANSIT* state will only go into the *HOVERING* state if there are no trajectories planned/stored after the current one. If there is multiple trajectories planned, it will sequentially follow them.
 
-![image](https://user-images.githubusercontent.com/44033533/186790602-2435b02e-b44d-4144-91de-e4c7d0182118.png)
+### Responses
+Responses are a way to send information from a single drone control node to the multi drone control node. Responses are a string data type. This may be useful for verifying if a message was received, a command was executed, or a position was reached. Below are potential messages that may be sent.
 
+##### Potential Responses & Explanation
+GROUND_IDLE, LIFTING_OFF, HOVERING, IN_TRANSIT, LANDING, SHUTTING_OFF, ERROR, REACHED, RECEIVED, NULL
+
+- One of the six states will be returned in a response if the *CHECK* command was sent.
+- The "ERROR" response is sent when a command was received but cannot be executed or is an invalid command.
+- The "REACHED" response is sent when a drone has reached the end of takeoff or a trajectory.
+- The "RECEIVED" response is sent when a command was received and was executed.
+- The "NULL" response is sent if there is an error with initally updating the response.
 
 ### Package Structure
 
