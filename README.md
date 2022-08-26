@@ -120,7 +120,7 @@ TRANSIT_NEW | Required
 - *LIFT* command lifts a drone off the ground into the air. If a point is given with a z > 0, then it will take off to that location. If no point is given it will take off 2m above its current position. A point is not needed to liftoff properly.
 - *LAND* command gently lands a drone onto the ground. Used generally at the end of a flight or when a drone needs to be taken out of the sky safely.
 - *CHECK* command will return the state the drone is currently in. It will use a *dresponse.msg* format, which will be talked about below.
-- *TRANSIT_ADD* command will a trajectory for the drone to follow. A point is needed. If the drone is HOVERING and this command is called, it will calculate an optimal path from its current location to the inputted location using the [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library. If the drone is currently in a trajectory, it will save that trajectory and go there once it is done with the current trajectory. Multiple trajectories can be added during or after a trajectory is complete.
+- *TRANSIT_ADD* command will generate a trajectory for the drone to follow, to a given target. A point is needed. If the drone is HOVERING and this command is called, it will calculate an optimal path from its current location to the target location using the [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library. If the drone is currently in a trajectory, it will save that trajectory and go there once it is done with the current trajectory. Multiple trajectories can be added during or after a trajectory is complete.
 - *TRANSIT_NEW* command is the same as the *TRANSIT_ADD* command, but with one difference. If it is called while a drone is following a trajectory, it will immediately stop following that trajectory, stabilize by hovering in place, delete all stored trajectories, and go to the new indented location. A point is needed. This is useful for following a new set of trajectories or moving toward a newly planned course.
 
 ### Command Behaviors
@@ -146,15 +146,14 @@ LIFTING_OFF | HOVERING
 IN_TRANSIT* | HOVERING
 LANDING | SHUTTING_DOWN
 
-\*The *IN_TRANSIT* state will only go into the *HOVERING* state if there are no trajectories planned/stored after the current one. If there is multiple trajectories planned, it will sequentially follow them.
+\*The *IN_TRANSIT* state will only go into the *HOVERING* state if there are no trajectories planned/stored after the current one. If there is multiple trajectories planned, it will stay in the *IN_TRANSIT* state to all planned trajectories.
 
 ### Responses
-Responses are a way to send information from a single drone control node to the multi drone control node. Responses are a string data type. This may be useful for verifying if a message was received, a command was executed, or a position was reached. Below are potential messages that may be sent.
+Responses are a way to send information from a single drone control node to the multi drone control node. Responses are a string data type. This may be useful for verifying if a message was received, a command was executed, or a position was reached. Below are potential messages that may be sent. Response are automatically sent once any command is sent, however, if you want to check the status of you previous command without affecting the drone you could use the *CHECK* command.
 
 ##### Potential Responses & Explanation
-GROUND_IDLE, LIFTING_OFF, HOVERING, IN_TRANSIT, LANDING, SHUTTING_OFF, ERROR, REACHED, RECEIVED, NULL
+ERROR, REACHED, RECEIVED, NULL
 
-- One of the six states will be returned in a response if the *CHECK* command was sent.
 - The "ERROR" response is sent when a command was received but cannot be executed or is an invalid command.
 - The "REACHED" response is sent when a drone has reached the end of takeoff or a trajectory.
 - The "RECEIVED" response is sent when a command was received and was executed.
