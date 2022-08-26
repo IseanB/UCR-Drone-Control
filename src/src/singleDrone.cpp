@@ -168,10 +168,9 @@ int main(int argc, char **argv){
         }
         else if (droneState == IN_TRANSIT){
             if (curr_trajectories.size() == 0){ // no traj planned
-                hover_position.pose = curr_position.pose;
+                hover_position.pose.position = curr_target.position;
                 currTrajTime = 0;
                 currTime = 0;
-                curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
             }
             else{ // at least one traj planned
@@ -192,6 +191,7 @@ int main(int argc, char **argv){
                         curr_target = segmentToPoint(first_trajectory->segmentThis, currTime-.001); // Make sures no invalid time is inputted
                         mav_pub.publish(curr_target);
                         if (currTime == currTrajTime){// at end of trajectory
+                            curr_target.position = first_trajectory->endPoint.pose.position;
                             curr_trajectories.pop();
                             delete first_trajectory;
                             currTrajTime = 0;
@@ -218,10 +218,10 @@ int main(int argc, char **argv){
                 local_vel_pub.publish(updatingVel);
             }
             else{//parabolic curve 3
-                updatingVel.linear.z = (-.3) * pow(curr_position.pose.position.z-.025, 2);
+                updatingVel.linear.z = (-.3) * pow(curr_position.pose.position.z, 2);
             }
 
-            if((isStationary(curr_velocity, .05) && ( curr_position.pose.position.z <= .07))){
+            if((isStationary(curr_velocity, .07) && ( curr_position.pose.position.z <= .2)) || ( curr_position.pose.position.z <= .05) ){
                 droneState = SHUTTING_DOWN;
             }
             if (ros::Time::now() - last_request > ros::Duration(2.0)){
@@ -341,7 +341,7 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
         else{
             TrajectoryGroupedInfo* first_trajectory;
             while(curr_trajectories.size() != 0){
-                first_trajectory = curr_trajectories->front();
+                first_trajectory = curr_trajectories.front();
                 curr_trajectories.pop();
                 delete first_trajectory;
             }
@@ -365,26 +365,7 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             droneState = LANDING;
         }
     }
-    else if(inputCmd == "CHECK"){
-        if(droneState == GROUND_IDLE){
-            last_response.response.data = "GROUND_IDLE";
-        }
-        else if(droneState == LIFTING_OFF){
-            last_response.response.data = "LIFTING_OFF";
-        }
-        else if(droneState == HOVERING){
-            last_response.response.data = "HOVERING";
-        }
-        else if(droneState == IN_TRANSIT){
-            last_response.response.data = "IN_TRANSIT";
-        }
-        else if(droneState == LANDING){
-            last_response.response.data = "LANDING";
-        }
-        else{
-            last_response.response.data = "ERROR";
-        }
-    }
+    else if(inputCmd == "CHECK"){}// Will return last response at the bottom.
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW"){
         if (droneState == GROUND_IDLE){
             ROS_INFO("TRANSIT Error: Run LIFT command first.");
@@ -422,11 +403,10 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.z = ending[2];
 
             TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
-            std::cout << curr_trajectories.size();
             curr_trajectories.push(outputGroupedInfo);
-            std::cout << curr_trajectories.size();
 
             droneState = IN_TRANSIT;
+            last_response.response.data = "RECIEVED";
         }
         else{
             hover_position.pose.position.x = curr_position.pose.position.x;
@@ -434,9 +414,9 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             hover_position.pose.position.z = curr_position.pose.position.z;
             ros::Rate temprate(20.0);
             // hover and stablize, for a little bit, before a new trajectory.
+            ROS_INFO("STABLIZING...");
             while (!isFlat(curr_position.pose, .02) && !isStationary(curr_velocity, .01, .01)){
                 local_pos_pub.publish(hover_position);
-                ROS_INFO("STABLIZING...");
                 ros::spinOnce();
                 temprate.sleep();
             }
