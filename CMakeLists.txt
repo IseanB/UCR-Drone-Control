@@ -154,11 +154,6 @@ add_executable(single_control
   helper/src/conversions.cpp
   helper/src/computations.cpp
   src/src/singleDrone.cpp)
-
-# add_executable(singleDroneControl_node 
-#   helper/src/conversions.cpp
-#   helper/src/computations.cpp
-#   src/src/single_control.cpp)
   
   ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -234,9 +229,9 @@ target_link_libraries(single_control
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_executable_with_gtest(simple_mov_test 
-#   helper/src/computations.cpp
-#   test/test_helperFunc.cpp)
+catkin_add_executable_with_gtest(test_drone_control 
+  helper/src/computations.cpp
+  test/test_helperFunc.cpp)
 # if(TARGET simple_mov_test)
 #   target_link_libraries(simple_mov_test ${PROJECT_NAME})
 # endif()

@@ -222,7 +222,7 @@ TEST(isFlat, negTilt){
     EXPECT_EQ(isFlat(drone3,-5), true);
 }
 
-TEST(reachedLocation_Pose, posValues){
+TEST(reachedLocation_PoseStamped, posValues){
     geometry_msgs::Pose drone1;
         drone1.position.x = 0;
         drone1.position.y = 0;
@@ -274,121 +274,10 @@ TEST(reachedLocation_Pose, posValues){
     EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
     EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
     EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
-
-}
-
-TEST(reachedLocation_Pose, negValues){
-        geometry_msgs::Pose drone1;
-        drone1.position.x = 0;
-        drone1.position.y = 0;
-        drone1.position.z = 0;
-    geometry_msgs::Pose drone2;
-        drone2.position.x = -1;
-        drone2.position.y = 0;
-        drone2.position.z = 0;
-    geometry_msgs::Pose drone3;
-        drone3.position.x = 0;
-        drone3.position.y = -1;
-        drone3.position.z = 0;
-    geometry_msgs::Pose drone4;
-        drone4.position.x = 0;
-        drone4.position.y = 0;
-        drone4.position.z = -1;
-    geometry_msgs::Pose drone5;
-        drone5.position.x = -1;
-        drone5.position.y = 1;
-        drone5.position.z = 0;
-    geometry_msgs::Pose drone6;
-        drone6.position.x = 0;
-        drone6.position.y = -1;
-        drone6.position.z = 1;
-    geometry_msgs::Pose drone7;
-        drone7.position.x = -1;
-        drone7.position.y = 0;
-        drone7.position.z = -1;
-    geometry_msgs::Pose drone8;
-        drone8.position.x = 1;
-        drone8.position.y = -1;
-        drone8.position.z = -1;
-    geometry_msgs::Pose drone9;
-        drone9.position.x = -.9;
-        drone9.position.y = .4;
-        drone9.position.z = 0;
-
-    geometry_msgs::PoseStamped destination;
-    destination.pose.position.x = 0;
-    destination.pose.position.y = 0;
-    destination.pose.position.z = 0;
-
-    EXPECT_EQ(reachedLocation(drone1, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone2, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone3, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone4, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone5, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone6, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
-
-}
-
-TEST(reachedLocation_PoseStamped, posValues){
-        geometry_msgs::Pose drone1;
-        drone1.position.x = 0;
-        drone1.position.y = 0;
-        drone1.position.z = 0;
-    geometry_msgs::Pose drone2;
-        drone2.position.x = 1;
-        drone2.position.y = 0;
-        drone2.position.z = 0;
-    geometry_msgs::Pose drone3;
-        drone3.position.x = 0;
-        drone3.position.y = 1;
-        drone3.position.z = 0;
-    geometry_msgs::Pose drone4;
-        drone4.position.x = 0;
-        drone4.position.y = 0;
-        drone4.position.z = 1;
-    geometry_msgs::Pose drone5;
-        drone5.position.x = 1;
-        drone5.position.y = 1;
-        drone5.position.z = 0;
-    geometry_msgs::Pose drone6;
-        drone6.position.x = 0;
-        drone6.position.y = 1;
-        drone6.position.z = 1;
-    geometry_msgs::Pose drone7;
-        drone7.position.x = 1;
-        drone7.position.y = 0;
-        drone7.position.z = 1;
-    geometry_msgs::Pose drone8;
-        drone8.position.x = 1;
-        drone8.position.y = 1;
-        drone8.position.z = 1;
-    geometry_msgs::Pose drone9;
-        drone9.position.x = .9;
-        drone9.position.y = .4;
-        drone9.position.z = 0;
-
-    geometry_msgs::Point destination;
-    destination.x = 0;
-    destination.y = 0;
-    destination.z = 0;
-
-    EXPECT_EQ(reachedLocation(drone1, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone2, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone3, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone4, destination, 1), true);
-    EXPECT_EQ(reachedLocation(drone5, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone6, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
-    EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
-
 }
 
 TEST(reachedLocation_PoseStamped, negValues){
-            geometry_msgs::Pose drone1;
+    geometry_msgs::Pose drone1;
         drone1.position.x = 0;
         drone1.position.y = 0;
         drone1.position.z = -0;
@@ -425,10 +314,10 @@ TEST(reachedLocation_PoseStamped, negValues){
         drone9.position.y = -.4;
         drone9.position.z = 0;
 
-    geometry_msgs::Point destination;
-    destination.x = 0;
-    destination.y = 0;
-    destination.z = 0;
+    geometry_msgs::PoseStamped destination;
+    destination.pose.position.x = 0;
+    destination.pose.position.y = 0;
+    destination.pose.position.z = 0;
 
     EXPECT_EQ(reachedLocation(drone1, destination, 1), true);
     EXPECT_EQ(reachedLocation(drone2, destination, 1), true);
@@ -439,7 +328,114 @@ TEST(reachedLocation_PoseStamped, negValues){
     EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
     EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
     EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
+}
 
+TEST(reachedLocation_PositionTarget, negValues){
+    geometry_msgs::Pose drone1;
+        drone1.position.x = 0;
+        drone1.position.y = 0;
+        drone1.position.z = -0;
+    geometry_msgs::Pose drone2;
+        drone2.position.x = -1;
+        drone2.position.y = 0;
+        drone2.position.z = 0;
+    geometry_msgs::Pose drone3;
+        drone3.position.x = 0;
+        drone3.position.y = -1;
+        drone3.position.z = 0;
+    geometry_msgs::Pose drone4;
+        drone4.position.x = 0;
+        drone4.position.y = 0;
+        drone4.position.z = -1;
+    geometry_msgs::Pose drone5;
+        drone5.position.x = -1;
+        drone5.position.y = 1;
+        drone5.position.z = 0;
+    geometry_msgs::Pose drone6;
+        drone6.position.x = 0;
+        drone6.position.y = -1;
+        drone6.position.z = 1;
+    geometry_msgs::Pose drone7;
+        drone7.position.x = 1;
+        drone7.position.y = 0;
+        drone7.position.z = -1;
+    geometry_msgs::Pose drone8;
+        drone8.position.x = -1;
+        drone8.position.y = -1;
+        drone8.position.z = -1;
+    geometry_msgs::Pose drone9;
+        drone9.position.x = -.9;
+        drone9.position.y = -.4;
+        drone9.position.z = 0;
+
+    mavros_msgs::PositionTarget destination;
+    destination.position.x = 0;
+    destination.position.y = 0;
+    destination.position.z = 0;
+
+    EXPECT_EQ(reachedLocation(drone1, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone2, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone3, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone4, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone5, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone6, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
+}
+
+TEST(reachedLocation_PositionTarget, posValues){
+    geometry_msgs::Pose drone1;
+        drone1.position.x = 0;
+        drone1.position.y = 0;
+        drone1.position.z = 0;
+    geometry_msgs::Pose drone2;
+        drone2.position.x = 1;
+        drone2.position.y = 0;
+        drone2.position.z = 0;
+    geometry_msgs::Pose drone3;
+        drone3.position.x = 0;
+        drone3.position.y = 1;
+        drone3.position.z = 0;
+    geometry_msgs::Pose drone4;
+        drone4.position.x = 0;
+        drone4.position.y = 0;
+        drone4.position.z = 1;
+    geometry_msgs::Pose drone5;
+        drone5.position.x = 1;
+        drone5.position.y = 1;
+        drone5.position.z = 0;
+    geometry_msgs::Pose drone6;
+        drone6.position.x = 0;
+        drone6.position.y = 1;
+        drone6.position.z = 1;
+    geometry_msgs::Pose drone7;
+        drone7.position.x = 1;
+        drone7.position.y = 0;
+        drone7.position.z = 1;
+    geometry_msgs::Pose drone8;
+        drone8.position.x = 1;
+        drone8.position.y = 1;
+        drone8.position.z = 1;
+    geometry_msgs::Pose drone9;
+        drone9.position.x = .9;
+        drone9.position.y = .4;
+        drone9.position.z = 0;
+
+    mavros_msgs::PositionTarget destination;
+    destination.position.x = 0;
+    destination.position.y = 0;
+    destination.position.z = 0;
+
+    EXPECT_EQ(reachedLocation(drone1, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone2, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone3, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone4, destination, 1), true);
+    EXPECT_EQ(reachedLocation(drone5, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone6, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone7, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone8, destination, 1), false);
+    EXPECT_EQ(reachedLocation(drone9, destination, 2), true);
 }
 
 int main(int argc, char **argv){

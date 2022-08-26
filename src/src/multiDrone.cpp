@@ -16,11 +16,13 @@ int main(int argc, char **argv)
     ros::Publisher drone1_cmd_pub = nh.advertise<drone_control::dcontrol>
             ("drone0/cmds", 5);
     ros::Publisher drone2_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone12/cmds", 5);
+            ("drone1/cmds", 5);
     ros::Publisher drone3_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone22/cmds", 5);
+            ("drone2/cmds", 5);
     ros::Publisher drone4_cmd_pub = nh.advertise<drone_control::dcontrol>
-            ("drone32/cmds", 5);
+            ("drone3/cmds", 5);
+    
+    ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dresponse>("drone0/info", 0, storeInfo);
     
     drone_control::dcontrol msg;
     bool lift = false;
@@ -30,8 +32,6 @@ int main(int argc, char **argv)
     bool transit4 = false;
     bool transit5 = false;
     bool transit6 = false;
-    bool transit7 = false;
-    // bool transit2 = false;
     while(ros::ok() && !lift){
         if(ros::Time::now() - last_request >= ros::Duration(1.0)){
             ROS_INFO("LIFT info sent");
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
-    while(ros::ok() && !transit7){
+    while(ros::ok() && !transit6){
         if(!transit && ros::Time::now() - last_request >= ros::Duration(15.0)){
             ROS_INFO(" TRANSIT ADD");
             msg.command.data = "TRANSIT_ADD";
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit = true;
         }
-        else if(!transit2 && transit && ros::Time::now() - last_request >= ros::Duration(10.0)){
+        else if(!transit2 && transit && ros::Time::now() - last_request >= ros::Duration(2.0)){
             ROS_INFO(" TRANSIT ADD");
             msg.command.data = "TRANSIT_ADD";
             msg.target.x = -1;
@@ -74,11 +74,11 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit2 = true;
         }
-        else if(!transit3 && transit2 && ros::Time::now() - last_request >= ros::Duration(1.0)){
+        else if(!transit3 && transit2 && ros::Time::now() - last_request >= ros::Duration(6.0)){
             ROS_INFO(" TRANSIT ADD");
             msg.command.data = "TRANSIT_ADD";
-            msg.target.x = 0;
-            msg.target.y = 0;
+            msg.target.x = 3;
+            msg.target.y = 3;
             msg.target.z = 1;
             drone1_cmd_pub.publish(msg);
             drone2_cmd_pub.publish(msg);
@@ -87,11 +87,11 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit3 = true;
         }
-        else if(!transit4 && transit3 && ros::Time::now() - last_request >= ros::Duration(15.0)){
-            ROS_INFO(" TRANSIT NEW");
+        else if(!transit4 && transit3 && ros::Time::now() - last_request >= ros::Duration(10.0)){
+            ROS_INFO(" TRANSIT_NEW");
             msg.command.data = "TRANSIT_NEW";
-            msg.target.x = -1;
-            msg.target.y = 2;
+            msg.target.x = -2;
+            msg.target.y = -4;
             msg.target.z = 2;
             drone1_cmd_pub.publish(msg);
             drone2_cmd_pub.publish(msg);
@@ -100,12 +100,12 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit4 = true;
         }
-        else if(!transit5 && transit4 && ros::Time::now() - last_request >= ros::Duration(3.0)){
-            ROS_INFO(" TRANSIT NEW");
-            msg.command.data = "TRANSIT_NEW";
-            msg.target.x = 1;
-            msg.target.y = -2;
-            msg.target.z = 2;
+        else if(!transit5 && transit4 && ros::Time::now() - last_request >= ros::Duration(4.0)){
+            ROS_INFO(" TRANSIT_ADD");
+            msg.command.data = "TRANSIT_ADD";
+            msg.target.x = 0;
+            msg.target.y = 0;
+            msg.target.z = 3;
             drone1_cmd_pub.publish(msg);
             drone2_cmd_pub.publish(msg);
             drone3_cmd_pub.publish(msg);
@@ -113,32 +113,15 @@ int main(int argc, char **argv)
             last_request = ros::Time::now();
             transit5 = true;
         }
-        else if(!transit6 && transit5 && ros::Time::now() - last_request >= ros::Duration(3.0)){
-            ROS_INFO(" TRANSIT ADD");
-            msg.command.data = "TRANSIT_ADD";
-            msg.target.x = 3;
-            msg.target.y = -2;
-            msg.target.z = 2;
+        else if(!transit6 && transit5 && ros::Time::now() - last_request >= ros::Duration(15.0)){
+            ROS_INFO(" LAND");
+            msg.command.data = "LAND";
             drone1_cmd_pub.publish(msg);
             drone2_cmd_pub.publish(msg);
             drone3_cmd_pub.publish(msg);
             drone4_cmd_pub.publish(msg);
             last_request = ros::Time::now();
             transit6 = true;
-        }
-        else if(!transit7 && transit6 && ros::Time::now() - last_request >= ros::Duration(1.0)){
-            ROS_INFO(" TRANSIT NEW");
-            msg.command.data = "TRANSIT_NEW";
-            msg.target.x = 0;
-            msg.target.y = 0;
-            msg.target.z = 2;
-            drone1_cmd_pub.publish(msg);
-            drone2_cmd_pub.publish(msg);
-            drone3_cmd_pub.publish(msg);
-            drone4_cmd_pub.publish(msg);
-            last_request = ros::Time::now();
-            transit7 = true;
-            ROS_INFO("DONE");
         }
         ros::spinOnce();
         rate.sleep();
