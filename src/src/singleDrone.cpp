@@ -39,6 +39,7 @@ geometry_msgs::Twist curr_velocity;
 geometry_msgs::PoseWithCovariance curr_position;
 
 // moderately dynamic data
+PossiableState droneState;
 geometry_msgs::Twist updatingVel;
 drone_control::dcontrol curr_message;
 geometry_msgs::PoseStamped hover_position;
@@ -46,7 +47,6 @@ geometry_msgs::PoseStamped hover_position;
 // static data
 std::string droneName;
 std::string uavPrefix;
-PossiableState droneState;
 ros::Publisher local_pos_pub;
 ros::Publisher multi_info_pub;
 mavros_msgs::CommandBool arm_cmd;
@@ -73,7 +73,7 @@ void updatePose(const nav_msgs::Odometry::ConstPtr &inputPose);
 void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose);
 
 /* Stores msgs from multi_control_node*/
-void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg);
+void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg);
 
 /*Generates a trajectory to follow, using mav_trajectory_generation package*/
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez);
@@ -91,7 +91,7 @@ int main(int argc, char **argv){
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(uavPrefix + "mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry>(uavPrefix + "mavros/global_position/local", 0, updatePose);
     ros::Subscriber vel_sub = nh.subscribe<geometry_msgs::TwistStamped>(uavPrefix + "mavros/global_position/raw/gps_vel", 0, updateVel);
-    ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>(droneName + "/cmds", 0, storeCommand);
+    ros::Subscriber multi_cmd_sub = nh.subscribe<drone_control::dcontrol>(droneName + "/cmds", 0, interpretCommand);
 
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>(uavPrefix + "mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>(uavPrefix + "mavros/set_mode");
@@ -158,7 +158,8 @@ int main(int argc, char **argv){
                 last_request = ros::Time::now();
             }
         }
-        else if (droneState == HOVERING){ // update hover_position before transiting to HOVERING
+        else if (droneState == HOVERING){ 
+        // update hover_position before transiting to HOVERING
             if (ros::Time::now() - last_request > ros::Duration(5.0)){
                 ROS_INFO("HOVERING...");
                 last_request = ros::Time::now();
@@ -185,10 +186,10 @@ int main(int argc, char **argv){
                 else{ // trajectory loaded
                     if (reachedLocation(curr_position.pose, curr_target, .35)){ // if near end of curr_target
                         currTime += timeStepSize;
-                        if (currTime + .1 > currTrajTime){ // Make sures no invalid time is inputted
+                        if (currTime > currTrajTime){
                             currTime = currTrajTime;
                         }
-                        curr_target = segmentToPoint(first_trajectory->segmentThis, currTime-.001);
+                        curr_target = segmentToPoint(first_trajectory->segmentThis, currTime-.001); // Make sures no invalid time is inputted
                         mav_pub.publish(curr_target);
                         if (currTime == currTrajTime){// at end of trajectory
                             curr_trajectories.pop();
@@ -220,7 +221,7 @@ int main(int argc, char **argv){
                 updatingVel.linear.z = (-.3) * pow(curr_position.pose.position.z-.025, 2);
             }
 
-            if(isStationary(curr_velocity, .05) && ( curr_position.pose.position.z <= .05)){
+            if((isStationary(curr_velocity, .05) && ( curr_position.pose.position.z <= .07))){
                 droneState = SHUTTING_DOWN;
             }
             if (ros::Time::now() - last_request > ros::Duration(2.0)){
@@ -310,7 +311,7 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     return mav_trajectory_generation::Segment(segments[0]); // only one segment is generated, start -> end. Only that is returned.
 }
 
-void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
+void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
     ros::Time last_request = ros::Time::now();
     last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
@@ -338,6 +339,13 @@ void storeCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             last_response.response.data = "ERROR";
         }
         else{
+            TrajectoryGroupedInfo* first_trajectory;
+            while(curr_trajectories.size() != 0){
+                first_trajectory = curr_trajectories->front();
+                curr_trajectories.pop();
+                delete first_trajectory;
+            }
+
             hover_position.pose = curr_position.pose;
             curr_target.position = hover_position.pose.position;
             droneState = HOVERING;
