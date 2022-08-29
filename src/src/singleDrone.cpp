@@ -1,6 +1,8 @@
 /*  Custom files  */
 #include "../../helper/conversions.h"
 #include "../../helper/computations.h"
+#include "drone_control/dcontrol.h"
+#include "drone_control/dresponse.h"
 
 /*  Libraries   */
 #include <ros/ros.h>
@@ -12,8 +14,6 @@
 #include <mavros_msgs/CommandLong.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <nav_msgs/Odometry.h>
-#include "drone_control/dcontrol.h"
-#include "drone_control/dresponse.h"
 #include <queue>
 
 enum PossiableState{
@@ -51,7 +51,7 @@ ros::Publisher local_pos_pub;
 ros::Publisher multi_info_pub;
 mavros_msgs::CommandBool arm_cmd;
 mavros_msgs::SetMode offb_set_mode;
-drone_control::dresponse last_response;
+// drone_control::dresponse last_response;
 
 // dynamic trajectory data
 std::queue<TrajectoryGroupedInfo *> curr_trajectories;
@@ -150,8 +150,8 @@ int main(int argc, char **argv){
                 curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
                 currTrajTime = 0;
-                last_response.response.data = "REACHED";
-                multi_info_pub.publish(last_response);
+                // last_response.response.data = "REACHED";
+                // multi_info_pub.publish(last_response);
             }
             if (ros::Time::now() - last_request > ros::Duration(10.0)){
                 ROS_INFO("Lifting Offf...");
@@ -195,8 +195,8 @@ int main(int argc, char **argv){
                             curr_trajectories.pop();
                             delete first_trajectory;
                             currTrajTime = 0;
-                            last_response.response.data = "REACHED";
-                            multi_info_pub.publish(last_response);
+                            // last_response.response.data = "REACHED";
+                            // multi_info_pub.publish(last_response);
                         }
                     }
                     else{
@@ -260,9 +260,9 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum){
     curr_target.position.y = curr_position.pose.position.y;
     curr_target.position.z = 2;
 
-    multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
+    // multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
     local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>(uavPrefix + "mavros/setpoint_position/local", 20);
-    last_response.response.data = "NULL";
+    // last_response.response.data = "NULL";
     offb_set_mode.request.custom_mode = "OFFBOARD"; // offboard command
     arm_cmd.request.value = true; // arming command
     droneState = GROUND_IDLE;
@@ -313,7 +313,7 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
 
 void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
     ros::Time last_request = ros::Time::now();
-    last_response.response.data = "RECEIVED";
+    // last_response.response.data = "RECEIVED";
     curr_message = *inputMsg;
 
     std::string inputCmd = inputMsg->command.data;
@@ -330,13 +330,13 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
         }
         else{
             ROS_INFO("LIFT Error: Drone is off the ground.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
     }
     else if (inputCmd == "STOP"){
         if (droneState == GROUND_IDLE){
             ROS_INFO("STOP Error: Drone is already stationary.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
         else{
             TrajectoryGroupedInfo* first_trajectory;
@@ -354,7 +354,7 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
     else if (inputCmd == "LAND"){
         if (droneState == LANDING || droneState == GROUND_IDLE){
             ROS_INFO("LAND Error: Drone is already landing/landed.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
         else{
             // updates curr_target for parabloic blend
@@ -369,15 +369,15 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW"){
         if (droneState == GROUND_IDLE){
             ROS_INFO("TRANSIT Error: Run LIFT command first.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
         else if (droneState == LIFTING_OFF){
             ROS_INFO("TRANSIT Error: Wait for liftoff completion.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
         else if (droneState == LANDING){
             ROS_INFO("TRANSIT Error: Wait for landing completion.");
-            last_response.response.data = "ERROR";
+            // last_response.response.data = "ERROR";
         }
         else if (inputCmd == "TRANSIT_ADD"){
             Eigen::Vector3d starting;
@@ -406,7 +406,7 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             curr_trajectories.push(outputGroupedInfo);
 
             droneState = IN_TRANSIT;
-            last_response.response.data = "RECIEVED";
+            // last_response.response.data = "RECIEVED";
         }
         else{
             hover_position.pose.position.x = curr_position.pose.position.x;
@@ -446,12 +446,12 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             curr_trajectories.push(outputGroupedInfo);
 
             droneState = IN_TRANSIT;
-            last_response.response.data = "RECIEVED";
+            // last_response.response.data = "RECIEVED";
         }
     }
     else{
         ROS_INFO("Error: Invalid Command.");
-        last_response.response.data = "ERROR";
+        // last_response.response.data = "ERROR";
     }
-    multi_info_pub.publish(last_response);
+    // multi_info_pub.publish(last_response);
 }
