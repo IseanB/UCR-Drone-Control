@@ -17,12 +17,12 @@
 #include <queue>
 
 enum PossiableState{
-    GROUND_IDLE,
-    LIFTING_OFF,
-    HOVERING,
-    IN_TRANSIT,
-    LANDING,
-    SHUTTING_DOWN // A drone is only momentarily in this state
+    GROUND_IDLE = 0,
+    LIFTING_OFF = 1,
+    HOVERING = 2,
+    IN_TRANSIT = 4,
+    LANDING = 8,
+    SHUTTING_DOWN = 16 // A drone is only momentarily in this state
 };
 
 struct TrajectoryGroupedInfo{// Groups essential information to reduce # of dereferences
@@ -42,6 +42,7 @@ geometry_msgs::PoseWithCovariance curr_position;
 PossiableState droneState;
 geometry_msgs::Twist updatingVel;
 drone_control::dcontrol curr_message;
+drone_control::dresponse drone_response;
 geometry_msgs::PoseStamped hover_position;
 
 // static data
@@ -51,7 +52,6 @@ ros::Publisher local_pos_pub;
 ros::Publisher multi_info_pub;
 mavros_msgs::CommandBool arm_cmd;
 mavros_msgs::SetMode offb_set_mode;
-// drone_control::dresponse last_response;
 
 // dynamic trajectory data
 std::queue<TrajectoryGroupedInfo *> curr_trajectories;
@@ -60,7 +60,7 @@ float currTrajTime;
 const float timeStepSize = .04;
 mavros_msgs::PositionTarget curr_target;
 
-
+/* Intializes variables*/
 void setup(ros::NodeHandle &nodehandler, std::string droneNum);
 
 /* Used for initiating contact with drone and setting it to OFFBOARD/ARMED mode */
@@ -74,6 +74,9 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose);
 
 /* Stores msgs from multi_control_node*/
 void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg);
+
+/* Output essential drone information*/
+void outputInfo();
 
 /*Generates a trajectory to follow, using mav_trajectory_generation package*/
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez);
@@ -115,6 +118,7 @@ int main(int argc, char **argv){
     for (unsigned i = 0; i < 20; ++i){
         local_pos_pub.publish(hover_position);
     }
+    outputInfo();
     std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
     // state based control
@@ -146,12 +150,10 @@ int main(int argc, char **argv){
                 }
             }
             local_pos_pub.publish(hover_position);
-            if ((reachedLocation(curr_position.pose, hover_position, .2)) && (isStationary(curr_velocity, .07))){
+            if ((reachedLocation(curr_position.pose, hover_position, .15)) && (isStationary(curr_velocity, .1))){
                 curr_target.position = hover_position.pose.position;
                 droneState = HOVERING;
                 currTrajTime = 0;
-                // last_response.response.data = "REACHED";
-                // multi_info_pub.publish(last_response);
             }
             if (ros::Time::now() - last_request > ros::Duration(10.0)){
                 ROS_INFO("Lifting Offf...");
@@ -229,6 +231,8 @@ int main(int argc, char **argv){
                 last_request = ros::Time::now();
             }
         }
+        outputInfo();
+
         ros::spinOnce();
         rate.sleep();
     }
@@ -242,7 +246,7 @@ int main(int argc, char **argv){
         end_flight_client.waitForExistence()){
         ROS_INFO("Vehicle has shutdown");
     }
-
+    outputInfo();
     return 0;
 }
 
@@ -260,9 +264,8 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum){
     curr_target.position.y = curr_position.pose.position.y;
     curr_target.position.z = 2;
 
-    // multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
+    multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
     local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>(uavPrefix + "mavros/setpoint_position/local", 20);
-    // last_response.response.data = "NULL";
     offb_set_mode.request.custom_mode = "OFFBOARD"; // offboard command
     arm_cmd.request.value = true; // arming command
     droneState = GROUND_IDLE;
@@ -454,4 +457,20 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
         // last_response.response.data = "ERROR";
     }
     // multi_info_pub.publish(last_response);
+}
+
+void outputInfo(){
+    drone_response.state = droneState;
+    drone_response.pose = curr_position.pose;
+    if(curr_trajectories.size() != 0) // In Transit
+        drone_response.target = curr_trajectories.front()->endPoint.pose;
+    else if(droneState == LIFTING_OFF || droneState == HOVERING){
+        geometry_msgs::Pose curr_target_point;
+        curr_target_point.position = curr_target.position;
+        drone_response.target = curr_target_point;
+    }
+    if(droneState == LANDING){// During landing, curr_target is used as a reference point to move away from, vertically.
+        drone_response.target.position.z = 0;
+    }
+    multi_info_pub.publish(drone_response);
 }
