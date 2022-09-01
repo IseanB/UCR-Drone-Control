@@ -282,8 +282,6 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose){
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
     Eigen::Vector3d startPoint(bx, by, bz);
     Eigen::Vector3d endPoint(ex, ey, ez);
-    if(startPoint == endPoint)
-        Eigen::Vector3d endPoint(ex+.2, ey+.2, ez);
 
     mav_trajectory_generation::Segment::Vector segments;
     mav_trajectory_generation::Vertex::Vector vertices;
@@ -301,6 +299,8 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     const double v_max = 2.0;
     const double a_max = 2.0;
     segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+    if(segment_times[0] == 0) // if the segment time is 0, it will result in error
+        segment_times[0] = .01;// used as a special value to indicate ignore the segment, in interpretCommand.
 
     const int N = 10; // needs to be at least 10 for min snap, 8 for min jerk
     mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
@@ -401,11 +401,12 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
-            curr_trajectories.push(outputGroupedInfo);
+            if(outputSegment.getTime() != .01){// ensures drone isn't already there. this is set in the generateTraj function
+                TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
+                curr_trajectories.push(outputGroupedInfo);
+            }
 
             droneState = IN_TRANSIT;
-            // last_response.response.data = "RECIEVED";
         }
         else{
             hover_position.pose.position.x = curr_position.pose.position.x;
@@ -441,18 +442,15 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
-            curr_trajectories.push(outputGroupedInfo);
-
+            if(outputSegment.getTime() != .01){// ensures drone isn't already there. this is set in the generateTraj function
+                TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
+                curr_trajectories.push(outputGroupedInfo);
+            }
             droneState = IN_TRANSIT;
-            // last_response.response.data = "RECIEVED";
         }
     }
-    else{
+    else
         ROS_INFO("Error: Invalid Command.");
-        // last_response.response.data = "ERROR";
-    }
-    // multi_info_pub.publish(last_response);
 }
 
 void outputInfo(){
