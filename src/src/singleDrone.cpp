@@ -115,9 +115,9 @@ int main(int argc, char **argv){
     }
 
     //Sends a few points necessary for initialization 
-    for (unsigned i = 0; i < 20; ++i){
+    for (unsigned i = 0; i < 20; ++i)
         local_pos_pub.publish(hover_position);
-    }
+    
     outputInfo();
     std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
@@ -242,10 +242,8 @@ int main(int argc, char **argv){
     endflight_call.request.broadcast = false;
     endflight_call.request.command = 400;
     endflight_call.request.param2 = 21196.0;
-    if( end_flight_client.call(endflight_call) &&
-        end_flight_client.waitForExistence()){
+    if( end_flight_client.call(endflight_call) && end_flight_client.waitForExistence())
         ROS_INFO("Vehicle has shutdown");
-    }
     outputInfo();
     return 0;
 }
