@@ -89,7 +89,7 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]));
     ros::NodeHandle nh;
-    setup(nh, static_cast<std::string>(argv[1]));
+    setup(nh, static_cast<std::string>(argv[1]));// parts of the drone can't be initalized in the setup function
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(uavPrefix + "mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry>(uavPrefix + "mavros/global_position/local", 0, updatePose);
@@ -197,8 +197,6 @@ int main(int argc, char **argv){
                             curr_trajectories.pop();
                             delete first_trajectory;
                             currTrajTime = 0;
-                            // last_response.response.data = "REACHED";
-                            // multi_info_pub.publish(last_response);
                         }
                     }
                     else{
@@ -258,12 +256,11 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum){
     hover_position.pose.position.y = curr_position.pose.position.y;
     hover_position.pose.position.z = 2; // sets the default liftoff position to 2m
 
-    curr_target.position.x = curr_position.pose.position.x;
-    curr_target.position.y = curr_position.pose.position.y;
-    curr_target.position.z = 2;
+    curr_target.position = curr_position.pose.position;
 
     multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
     local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>(uavPrefix + "mavros/setpoint_position/local", 20);
+    drone_response.droneid = stoi(droneNum);
     offb_set_mode.request.custom_mode = "OFFBOARD"; // offboard command
     arm_cmd.request.value = true; // arming command
     droneState = GROUND_IDLE;
@@ -285,6 +282,8 @@ void updateVel(const geometry_msgs::TwistStamped::ConstPtr &inputPose){
 mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, int ey, int ez){
     Eigen::Vector3d startPoint(bx, by, bz);
     Eigen::Vector3d endPoint(ex, ey, ez);
+    if(startPoint == endPoint)
+        Eigen::Vector3d endPoint(ex+.2, ey+.2, ez);
 
     mav_trajectory_generation::Segment::Vector segments;
     mav_trajectory_generation::Vertex::Vector vertices;
