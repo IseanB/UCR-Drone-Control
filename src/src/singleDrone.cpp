@@ -368,7 +368,6 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             droneState = LANDING;
         }
     }
-    else if(inputCmd == "CHECK"){}// Will return last response at the bottom.
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW"){
         if (droneState == GROUND_IDLE){
             ROS_INFO("TRANSIT Error: Run LIFT command first.");
