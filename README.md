@@ -160,7 +160,6 @@ geometry_msgs/Pose *target*<br />
 - *pose* is the current position(x,y,z) of the drone, relative to its origin.
 - *target* is the position the drone is trying to go to, usually the end of the.
 
-
 ### Package Structure
 
 The ***drone_control*** package is structured into five main folders: helper, launch, msg, src and test folder. Below are quick summaries of each folder's purpose.
