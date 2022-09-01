@@ -98,7 +98,7 @@ The singleDrone.cpp file stores the code for the ROS node that controls a single
 
 The single drone control node is centered around a state-based control approach. For the state-based control, it must be known that a variable inside the node stores the state the drone is in. Below shows the different states the drone can be in, and depending which one the drone is in determines the drone's behavior. For example, if the node has the drone in the *HOVERING* state, then the drone would simply stay at, or very close, to a single point in the 3D space. The *GROUND_IDLE* state is the state the drone is first initialized to on the ground. All other states should be self-explanatory. 
 
-![image](https://user-images.githubusercontent.com/44033533/186802424-05f81d06-6408-4dae-ab81-4823004b6537.png)
+![image](https://user-images.githubusercontent.com/44033533/187813657-ca4ffe3f-d300-496e-ad13-0686a2ff9a6f.png)
 
 As for transitioning the drone through the possible states, a command needs to be sent to the node using the *dcontrol.msg* format, which will then be interpreted by the *interpretCommand* function. A command, string, is inputted into the "command" section, and a point, three floats, into the target section. Not all commands need a target point inputted, such as *LIFT* and *STOP*. Below is a table of all of the possible commands that could be sent and whether they need a point to be sent alongside it. A list of commands can also be found in the msg file. 
 
@@ -119,7 +119,6 @@ TRANSIT_NEW | Required
 - *STOP* command stops a drone dead in its track by deleting all of its trajectories and putting it in the *HOVERING* state. **Useful for stopping a drone, but not disabling it.**
 - *LIFT* command lifts a drone off the ground into the air. If a point is given with a z > 0, then it will take off to that location. If no point is given it will take off 2m above its current position. A point is not needed to liftoff properly.
 - *LAND* command gently lands a drone onto the ground. Used generally at the end of a flight or when a drone needs to be taken out of the sky safely.
-- *CHECK* command will return the state the drone is currently in. It will use a *dresponse.msg* format, which will be talked about below.
 - *TRANSIT_ADD* command will generate a trajectory for the drone to follow, to a given target. A point is needed. If the drone is HOVERING and this command is called, it will calculate an optimal path from its current location to the target location using the [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library. If the drone is currently in a trajectory, it will save that trajectory and go there once it is done with the current trajectory. Multiple trajectories can be added during or after a trajectory is complete.
 - *TRANSIT_NEW* command is the same as the *TRANSIT_ADD* command, but with one difference. If it is called while a drone is following a trajectory, it will immediately stop following that trajectory, stabilize by hovering in place, delete all stored trajectories, and go to the new indented location. A point is needed. This is useful for following a new set of trajectories or moving toward a newly planned course.
 
@@ -149,15 +148,17 @@ LANDING | SHUTTING_DOWN
 \*The *IN_TRANSIT* state will only go into the *HOVERING* state if there are no trajectories planned/stored after the current one. If there is multiple trajectories planned, it will stay in the *IN_TRANSIT* state to all planned trajectories.
 
 ### Responses
-Responses are a way to send information from a single drone control node to the multi drone control node. Responses are a string data type. This may be useful for verifying if a message was received, a command was executed, or a position was reached. Below are potential messages that may be sent. Response are automatically sent once any command is sent, however, if you want to check the status of you previous command without affecting the drone you could use the *CHECK* command.
+Responses are a way to send information from a single drone control node to the multi drone control node. Responses communicate the drone's state, position, and target. This may be useful for verifying if a message was received, a command was executed, or a position was reached. Below is the format of such messages.
 
-##### Potential Responses & Explanation
-ERROR, REACHED, RECEIVED, NULL
+<ins>**Format** (Data Type & Name)</ins>
 
-- The "ERROR" response is sent when a command was received but cannot be executed or is an invalid command.
-- The "REACHED" response is sent when a drone has reached the end of takeoff or a trajectory.
-- The "RECEIVED" response is sent when a command was received and was executed.
-- The "NULL" response is sent if there is an error with initally updating the response.
+uint8 *state*<br />
+geometry_msgs/Pose *pose*<br />
+geometry_msgs/Pose *target*<br />
+
+- *state* corresponds to the state the drone is in, see image above to see which number corresponds to which state.
+- *pose* is the current position(x,y,z) of the drone, relative to its origin.
+- *target* is the position the drone is trying to go to, usually the end of the.
 
 ### Package Structure
 

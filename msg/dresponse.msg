@@ -1,2 +1,3 @@
-# Responses: States, ERROR, RECEIVED, REACHED, NULL
-std_msgs/String response
+uint8 state
+geometry_msgs/Pose pose
+geometry_msgs/Pose target
