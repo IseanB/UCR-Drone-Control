@@ -110,7 +110,6 @@ SHUTOFF | N/A
 STOP | N/A
 LIFT | Optional
 LAND | N/A
-CHECK | N/A
 TRANSIT_ADD | Required
 TRANSIT_NEW | Required
 
