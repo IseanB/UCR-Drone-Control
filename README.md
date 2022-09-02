@@ -49,6 +49,10 @@ This repository combines a trajectory planning, communication protocol, and robo
   . ~/[Workspace Name]/devel/setup.bash
   ```
   
+  7. Create a file title "multiDrone.cpp" in the *src/src* folder path.
+     - Write your multi drone control software in here.
+     - Examples of multi drone control software are given in other branches with the **multiDroneControl** prefix, followed by how its controlled.
+  
   
 ### Installation Bug Fixes:
 1. Pillow Build Error [^6]
@@ -57,26 +61,13 @@ This repository combines a trajectory planning, communication protocol, and robo
 4. Symforce Error (Look above, under *Install PX4 Related Dependencies* for fix.)
 
 ---
-## Usage
-### Running Multi Drone Control
-
-Once the installation process is complete, these terminal commands properly run the drone_control package. 
-1. Run ```roslaunch drone_control fourDronesNodes.launch```.
-   - Initializes simulated world, MAVROS nodes, and spawn the four drones.
-2. Run ```rosrun drone_control single_control (0-3)``` with a different number in the range [0,3].
-   - Initialize nodes for all four drones.
-   - Run in the command in seperate terminals windows/tabs with a different number, for all the drones. 
-3. Run ```rosrun drone_control multi_control```.
-   - Runs the multi drone control code.
-   - To prevent the VMWare REST Error, run ```echo "export SVGA_VGPU10=0" >> ~/.bashrc``` and ```source ~/.bashrc```.[^8]
-
-### Commands
+## Commands
 
 #### Setup World, MAVROS nodes, and four drones
 ```roslaunch drone_control fourDronesNodes.launch```
 
 #### Running drone# node(single drone control)
-```rosrun drone_control single_control (0-3)```
+```rosrun drone_control single_control```
 
 #### Running multi_control node(multi drone control)
 ```rosrun drone_control multi_control```
@@ -88,10 +79,11 @@ Once the installation process is complete, these terminal commands properly run 
 
 ## Technical Breakdown
 
-This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node.
+This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node. Below is a overview of the software structure(The connection between Gazebo and MAVROS is abstracted).
+![droneModifiedRQTGraph drawio (1)](https://user-images.githubusercontent.com/44033533/188247351-9aca9c04-413f-4e38-8746-7263c34eee21.png)
 
 ### Multi Drone Control Structure
-The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, an example of controlling four nodes is given. The file uses ***keyboard inputs*** in order to control the drone. Responses are used to see when the drone has shutoff. Responses will be talked about later in the technical breakdown.
+The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, there are no examples.
 
 
 ### Single Drone Control Structure
