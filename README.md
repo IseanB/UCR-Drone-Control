@@ -93,7 +93,6 @@ This breakdown will help explain essential information needed to interface, comm
 ### Multi Drone Control Structure
 The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, an example of controlling four nodes is given. The file uses ***keyboard inputs*** in order to control the drone. Responses are used to see when the drone has shutoff. Responses will be talked about later in the technical breakdown.
 
-
 ### Single Drone Control Structure
 The singleDrone.cpp file stores the code for the ROS node that controls a single drone. Multiple instances of this node allow for the independent control of multiple drones, with the aid of the multi-drone control node. Below is a visaulization of the multi_control_node and single_drone_control(drone0) node interactions through certain topics. 
 
