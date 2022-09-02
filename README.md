@@ -2,6 +2,8 @@
 
 This repository combines a trajectory planning, communication protocol, and robotics libraries for a simple interface to control multiple drones. Our code is built with the [ROS (Melodic)](http://wiki.ros.org/melodic) and [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) frameworks to develop the drone control software. The [MAV Trajectory Generation](https://github.com/ethz-asl/mav_trajectory_generation) library generates an optimized, minimum snap, path for our drones to follow. Finally, [MAVLink (MAVROS)](http://wiki.ros.org/mavros) is our primary messaging protocol, interfacing with the drones.
 
+![droneDemo1](https://user-images.githubusercontent.com/44033533/188036430-74ee8e96-2bcc-49c3-9673-c8df9dbdc5bf.gif)
+
 ---
 
 **Advisors:** Hanzhe Teng
@@ -89,7 +91,8 @@ Once the installation process is complete, these terminal commands properly run 
 This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node.
 
 ### Multi Drone Control Structure
-The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, an example of controlling four nodes is given. The file uses estimates for the time needed to complete a certain command. Responses from each drone can also be used. Responses will be talked about later in the technical breakdown.
+The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, an example of controlling four nodes is given. The file uses ***keyboard inputs*** in order to control the drone. Responses are used to see when the drone has shutoff. Responses will be talked about later in the technical breakdown.
+
 
 ### Single Drone Control Structure
 The singleDrone.cpp file stores the code for the ROS node that controls a single drone. Multiple instances of this node allow for the independent control of multiple drones, with the aid of the multi-drone control node. Below is a visaulization of the multi_control_node and single_drone_control(drone0) node interactions through certain topics. 

@@ -89,7 +89,7 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "drone" + static_cast<std::string>(argv[1]));
     ros::NodeHandle nh;
-    setup(nh, static_cast<std::string>(argv[1]));
+    setup(nh, static_cast<std::string>(argv[1]));// parts of the drone can't be initalized in the setup function
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>(uavPrefix + "mavros/state", 0, state_cb);
     ros::Subscriber pos_sub = nh.subscribe<nav_msgs::Odometry>(uavPrefix + "mavros/global_position/local", 0, updatePose);
@@ -115,9 +115,9 @@ int main(int argc, char **argv){
     }
 
     //Sends a few points necessary for initialization 
-    for (unsigned i = 0; i < 20; ++i){
+    for (unsigned i = 0; i < 20; ++i)
         local_pos_pub.publish(hover_position);
-    }
+    
     outputInfo();
     std::cout << "Drone " + static_cast<std::string>(argv[1]) + " Initialized!\n";
 
@@ -197,8 +197,6 @@ int main(int argc, char **argv){
                             curr_trajectories.pop();
                             delete first_trajectory;
                             currTrajTime = 0;
-                            // last_response.response.data = "REACHED";
-                            // multi_info_pub.publish(last_response);
                         }
                     }
                     else{
@@ -242,10 +240,8 @@ int main(int argc, char **argv){
     endflight_call.request.broadcast = false;
     endflight_call.request.command = 400;
     endflight_call.request.param2 = 21196.0;
-    if( end_flight_client.call(endflight_call) &&
-        end_flight_client.waitForExistence()){
+    if( end_flight_client.call(endflight_call) && end_flight_client.waitForExistence())
         ROS_INFO("Vehicle has shutdown");
-    }
     outputInfo();
     return 0;
 }
@@ -260,12 +256,11 @@ void setup(ros::NodeHandle &nodehandler, std::string droneNum){
     hover_position.pose.position.y = curr_position.pose.position.y;
     hover_position.pose.position.z = 2; // sets the default liftoff position to 2m
 
-    curr_target.position.x = curr_position.pose.position.x;
-    curr_target.position.y = curr_position.pose.position.y;
-    curr_target.position.z = 2;
+    curr_target.position = curr_position.pose.position;
 
     multi_info_pub = nodehandler.advertise<drone_control::dresponse>(droneName + "/info", 0);
     local_pos_pub = nodehandler.advertise<geometry_msgs::PoseStamped>(uavPrefix + "mavros/setpoint_position/local", 20);
+    drone_response.droneid = stoi(droneNum);
     offb_set_mode.request.custom_mode = "OFFBOARD"; // offboard command
     arm_cmd.request.value = true; // arming command
     droneState = GROUND_IDLE;
@@ -304,6 +299,8 @@ mav_trajectory_generation::Segment generateTraj(int bx, int by, int bz, int ex, 
     const double v_max = 2.0;
     const double a_max = 2.0;
     segment_times = estimateSegmentTimes(vertices, v_max, a_max);
+    if(segment_times[0] == 0) // if the segment time is 0, it will result in error
+        segment_times[0] = .01;// used as a special value to indicate ignore the segment, in interpretCommand.
 
     const int N = 10; // needs to be at least 10 for min snap, 8 for min jerk
     mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
@@ -368,7 +365,6 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             droneState = LANDING;
         }
     }
-    else if(inputCmd == "CHECK"){}// Will return last response at the bottom.
     else if (inputCmd == "TRANSIT_ADD" || inputCmd == "TRANSIT_NEW"){
         if (droneState == GROUND_IDLE){
             ROS_INFO("TRANSIT Error: Run LIFT command first.");
@@ -405,11 +401,12 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
-            curr_trajectories.push(outputGroupedInfo);
+            if(outputSegment.getTime() != .01){// ensures drone isn't already there. this is set in the generateTraj function
+                TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
+                curr_trajectories.push(outputGroupedInfo);
+            }
 
             droneState = IN_TRANSIT;
-            // last_response.response.data = "RECIEVED";
         }
         else{
             hover_position.pose.position.x = curr_position.pose.position.x;
@@ -445,18 +442,15 @@ void interpretCommand(const drone_control::dcontrol::ConstPtr &inputMsg){
             endingPoint.pose.position.y = ending[1];
             endingPoint.pose.position.z = ending[2];
 
-            TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
-            curr_trajectories.push(outputGroupedInfo);
-
+            if(outputSegment.getTime() != .01){// ensures drone isn't already there. this is set in the generateTraj function
+                TrajectoryGroupedInfo *outputGroupedInfo = new TrajectoryGroupedInfo(outputSegment, startingPoint, endingPoint, static_cast<float>(outputSegment.getTime()));
+                curr_trajectories.push(outputGroupedInfo);
+            }
             droneState = IN_TRANSIT;
-            // last_response.response.data = "RECIEVED";
         }
     }
-    else{
+    else
         ROS_INFO("Error: Invalid Command.");
-        // last_response.response.data = "ERROR";
-    }
-    // multi_info_pub.publish(last_response);
 }
 
 void outputInfo(){
