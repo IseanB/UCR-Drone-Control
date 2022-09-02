@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     bool done = false;
     outputMenu();
     std::cout << "Insert Command: ";
-    while(ros::ok() && std::cin >> input && !done){
+    while(ros::ok() && !done && std::cin >> input){
         // Gets all neccassary info
         command = input[0];
         if(command == 'a' || command == 'n' || command == 'l'){
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         else if(command == 'q'){
             // first land the drones
             msg.command.data = "LAND";
-            std::cout << "\n\n\n\n\n\n---------------------------\n";
+            std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n---------------------------\n";
             std::cout << "   EXECUTING: QUIT    \n";
             std::cout << "---------------------------\n";
             drone_cmd_pub[0].publish(msg);
@@ -133,19 +133,24 @@ int main(int argc, char **argv)
             // second shutoff the drones
             msg.command.data = "SHUTOFF";
             bool landed = false;
-            while(!landed){
+            while(ros::ok() && !landed){
                 int numDronesLanded = 0;
-                for(drone_control::dresponse response : drone_responses){
-                    if(response.state == 0){
+                for(drone_control::dresponse response : drone_responses){ // iterates through all reponses of the drones
+                    if(response.pose.position.z <= .2){// Checks if the last response has the drone in GROUND_IDLE or SHUTOFF
                         drone_cmd_pub[response.droneid].publish(msg);
                         ++numDronesLanded;
                     }
+                    ros::spinOnce();
+                    rate.sleep();
                 }
-                if(numDronesLanded == TOTAL_DRONES)
+                if(numDronesLanded == TOTAL_DRONES){
                     landed = true;
                     done = true;
+                }
             }
-            std::cout << "Insert Command: ";
+            std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n---------------------------\n";
+            std::cout << "   EXECUTED: QUIT    \n";
+            std::cout << "---------------------------\n";
         }
         else{
             outputMenu();
@@ -161,7 +166,7 @@ void setup(ros::NodeHandle& nodehandler){
     int droneCounter = 0;
     while(droneCounter != TOTAL_DRONES){
         drone_cmd_pub[droneCounter] = nodehandler.advertise<drone_control::dcontrol>("drone" + std::to_string(droneCounter) + "/cmds", 5);
-        drone_info_sub[droneCounter] = nodehandler.subscribe<drone_control::dresponse>("drone" + std::to_string(droneCounter) + "/info", 0, storeInfo);
+        drone_info_sub[droneCounter] = nodehandler.subscribe<drone_control::dresponse>("drone" + std::to_string(droneCounter) + "/info", 1, storeInfo);
         ++droneCounter;
     }
 }
