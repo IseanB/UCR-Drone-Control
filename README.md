@@ -80,10 +80,10 @@ This repository combines a trajectory planning, communication protocol, and robo
 ## Technical Breakdown
 
 This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node. Below is a overview of the software structure(The connection between Gazebo and MAVROS is abstracted).
-![droneModifiedRQTGraph drawio (1)](https://user-images.githubusercontent.com/44033533/188247351-9aca9c04-413f-4e38-8746-7263c34eee21.png)
 
 ### Multi Drone Control Structure
 The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, there are no examples.
+![newpic drawio](https://user-images.githubusercontent.com/44033533/190566594-75d036f5-c157-4f97-9e67-e125341943b1.png)
 
 
 ### Single Drone Control Structure
