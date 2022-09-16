@@ -41,9 +41,9 @@ This repository combines a trajectory planning, communication protocol, and robo
   6. Create a ROS package "drone_control"
   ```
   cd ~/[Workspace Name]/src
+  mkdir drone_control
   git clone --recursive git@github.com:IseanB/UCR-Drone-Control.git
   mv UCR-Drone-Control drone_control
-  cd drone_control
   cd ~/[Workspace Name]
   catkin build
   . ~/[Workspace Name]/devel/setup.bash
