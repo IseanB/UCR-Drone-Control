@@ -80,10 +80,10 @@ This repository combines a trajectory planning, communication protocol, and robo
 ## Technical Breakdown
 
 This breakdown will help explain essential information needed to interface, commands and response, with the single drone control node. Below is a overview of the software structure(The connection between Gazebo and MAVROS is abstracted).
+![newpic drawio](https://user-images.githubusercontent.com/44033533/190566594-75d036f5-c157-4f97-9e67-e125341943b1.png)
 
 ### Multi Drone Control Structure
 The multiDrone.cpp file stores the code for the ROS node that controls all of the single drone control nodes. In the current file, there are no examples.
-![newpic drawio](https://user-images.githubusercontent.com/44033533/190566594-75d036f5-c157-4f97-9e67-e125341943b1.png)
 
 
 ### Single Drone Control Structure
@@ -91,7 +91,7 @@ The singleDrone.cpp file stores the code for the ROS node that controls a single
 
 ![image](https://user-images.githubusercontent.com/44033533/186790602-2435b02e-b44d-4144-91de-e4c7d0182118.png)
 
-The single drone control node is centered around a state-based control approach. For the state-based control, it must be known that a variable inside the node stores the state the drone is in. Below shows the different states the drone can be in, and depending which one the drone is in determines the drone's behavior. For example, if the node has the drone in the *HOVERING* state, then the drone would simply stay at, or very close, to a single point in the 3D space. The *GROUND_IDLE* state is the state the drone is first initialized to on the ground. All other states should be self-explanatory. 
+The single drone control node is centered around a state-based control approach. For the state-based control, it must be known that a variable inside the  /drone# node stores the state the drone is in. Below shows the different states the drone can be in, and depending which one the drone is in determines the drone's behavior. For example, if the node has the drone in the *HOVERING* state, then the drone would simply stay at, or very close, to a single point in the 3D space. The *GROUND_IDLE* state is the state the drone is first initialized to on the ground. All other states should be self-explanatory. 
 
 ![image](https://user-images.githubusercontent.com/44033533/187813657-ca4ffe3f-d300-496e-ad13-0686a2ff9a6f.png)
 
@@ -151,7 +151,7 @@ geometry_msgs/Pose *target*<br />
 
 - *state* corresponds to the state the drone is in, see image above to see which number corresponds to which state.
 - *pose* is the current position(x,y,z) of the drone, relative to its origin.
-- *target* is the position the drone is trying to go to, usually the end of the.
+- *target* is the position the drone is trying to go to, usually the end of the current trajectory.
 
 ### Package Structure
 
