@@ -145,10 +145,12 @@ Responses are a way to send information from a single drone control node to the 
 
 <ins>**Format** (Data Type & Name)</ins>
 
+uint16 *droneid*<br />
 uint8 *state*<br />
 geometry_msgs/Pose *pose*<br />
 geometry_msgs/Pose *target*<br />
 
+- *droneid* corresponds to the drone number the drone# node are using to identify the drone.
 - *state* corresponds to the state the drone is in, see image above to see which number corresponds to which state.
 - *pose* is the current position(x,y,z) of the drone, relative to its origin.
 - *target* is the position the drone is trying to go to, usually the end of the current trajectory.
